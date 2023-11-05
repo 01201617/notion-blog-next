@@ -5,7 +5,7 @@ on:
     branches:
       - main # トリガーするブランチを適切に指定
   schedule:
-    - cron: "0 * * * *" # 1時間おきに実行 (0分ごとに実行)
+    - cron: "0 */12 * * *"
 
 env:
   NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
