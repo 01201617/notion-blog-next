@@ -1,0 +1,51 @@
+{
+  "name": "notion-blog-next12",
+  "version": "0.1.0",
+  "private": true,
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run before && next build && next export",
+    "build2": "next build && next export",
+    "start": "next start",
+    "lint": "next lint",
+    "debug": "NODE_OPTIONS='--inspect' next dev",
+    "before": "npx ts-node --project tsconfig.local.json  ./lib/beforeBuild.ts"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.4.2",
+    "@fortawesome/free-brands-svg-icons": "^6.4.2",
+    "@fortawesome/free-regular-svg-icons": "^6.4.2",
+    "@fortawesome/free-solid-svg-icons": "^6.4.2",
+    "@fortawesome/react-fontawesome": "^0.2.0",
+    "@notionhq/client": "^2.2.13",
+    "aws-sdk": "^2.1456.0",
+    "axios": "^1.5.0",
+    "dotenv": "^16.3.1",
+    "fs-extra": "^11.1.1",
+    "next": "13.4.19",
+    "notion-to-md": "^3.1.1",
+    "react": "18.2.0",
+    "react-copy-to-clipboard": "^5.1.0",
+    "react-dom": "18.2.0",
+    "react-markdown": "^8.0.7",
+    "react-syntax-highlighter": "^15.5.0",
+    "remark-breaks": "^3.0.3",
+    "tocbot": "^4.21.1",
+    "ts-node": "^10.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.5.9",
+    "@types/react": "18.2.21",
+    "@types/react-dom": "18.2.7",
+    "autoprefixer": "^10.4.15",
+    "eslint": "8.48.0",
+    "eslint-config-next": "13.4.19",
+    "postcss": "^8.4.29",
+    "tailwindcss": "^3.3.3",
+    "typescript": "5.2.2"
+  }
+}

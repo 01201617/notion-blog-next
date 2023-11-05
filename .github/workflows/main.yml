@@ -1,0 +1,88 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main # トリガーするブランチを適切に指定
+  schedule:
+    - cron: "0 * * * *" # 1時間おきに実行 (0分ごとに実行)
+
+env:
+  NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+  NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+  NEXT_PUBLIC_GA_ID: ${{ secrets.NEXT_PUBLIC_GA_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  S3_REGION: ${{ secrets.S3_REGION }}
+  LAMBDA_ENDPOINT: ${{ secrets.LAMBDA_ENDPOINT }}
+  TEST_VARIABLE: ${{ secrets.TEST_VARIABLE }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18" # Node.jsのバージョンは適宜変更
+
+      - name: Install Dependencies
+        run: |
+          rm -rf node_modules
+          rm package-lock.json
+          npm install
+          npm install next --save
+          npm update
+          npm cache clean --force
+          npm install next
+
+      - name: Build1
+        run: npm run before
+
+      - name: Build2
+        run: npm run build2
+
+      # - name: Archive Artifacts
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: build-output
+      #     path: out
+
+      # deploy:
+      #   runs-on: ubuntu-latest
+
+      #   needs: build
+
+      #   steps:
+      # - name: Download Artifacts
+      #   uses: actions/download-artifact@v2
+      #   with:
+      #     name: build-output
+
+      - name: Set Up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8" # Pythonのバージョンは適宜変更
+
+      - name: Install AWS CLI
+        run: pip install awscli
+
+      - name: Configure AWS Credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region ${{ secrets.S3_REGION }}
+
+      # - name: Clear S3 Bucket
+      #   run: aws s3 rm s3://${{ secrets.S3_BUCKET_NAME }} --recursive
+
+      - name: Upload to S3
+        run: aws s3 sync out s3://${{ secrets.S3_BUCKET_NAME }}
+
+      - name: Create CloudFront Invalidation
+        run: aws cloudfront create-invalidation --distribution-id ${{ secrets.DISTRIBUTION_ID }} --paths "/*"

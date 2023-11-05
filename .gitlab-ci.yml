@@ -1,0 +1,30 @@
+# variables:
+#   NOTION_TOKEN: "$NOTION_TOKEN"
+#   NOTION_DATABASE_ID: "$NOTION_DATABASE_ID"
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: node:20 # Node.jsのバージョンは適宜変更してください
+  script:
+    - echo 'NOTION_TOKEN=$NOTION_TOKEN\nNOTION_DATABASE_ID=$NOTION_DATABASE_ID\nNEXT_PUBLIC_GA_ID=$NEXT_PUBLIC_GA_ID\nAWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY\nS3_BUCKET_NAME=$S3_BUCKET_NAME\nS3_REGION=$S3_REGION\nLAMBDA_ENDPOINT=$LAMBDA_ENDPOINT' > ./.env.local
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - out/
+
+deploy:
+  stage: deploy
+  image: python:3.8 # Pythonのバージョンは適宜変更してください
+  script:
+    - pip install awscli
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    - aws s3 rm s3://$S3_BUCKET_NAME --recursive # バケット内をクリア
+    - aws s3 sync out/ s3://$S3_BUCKET_NAME # ビルド内容をアップロード
+    - aws configure set region $REGION
+    - aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"

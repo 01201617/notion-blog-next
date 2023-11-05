@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    color: white;
+    background: black;
+  }
+}
+
+.toc {
+  /* 目次のスタイル */
+  color: gray;
+  overflow-wrap: break-word;
+  inline-size: 200px;
+  /*固定したい位置*/
+  position: fixed;
+  top: 10;
+  right: 0;
+
+  /*ナビゲーションの形状*/
+  background: rgba(255, 255, 255, 0.843);
+  border: 1px solid #eee;
+  box-shadow: 0 0 5px #ddd;
+  padding: 20px;
+}
+@media screen and (max-width: 768px) {
+  .toc {
+    color: pink;
+    /*固定したい位置*/
+    bottom: 0;
+    left: 0;
+    width: 100%;
+  }
+}
+
+.toc a.is-active-link {
+  /* 現在アクティブになっている目次のスタイル */
+  color: black;
+}
+
+.blog-pre {
+  margin-bottom: 3em !important;
+  position: relative;
+}
+
+.code-copy-btn {
+  color: white;
+  position: absolute;
+  right: 10px;
+  top: -2px;
+  font-size: 1.5em;
+  cursor: pointer;
+  transition: all 0.5s ease-in-out;
+}
+
+.code-copy-btn:hover {
+  transform: scale(1.3);
+  opacity: 0.9;
+}
+
+/* 投稿記事のスタイル */
+img {
+  width: 70%;
+}
+h1 {
+  margin: 15px 10px;
+  color: rgb(105, 103, 103);
+  font-size: 1.5rem;
+  position: relative;
+  background: #f4fbfd;
+  padding: 1rem 0.5rem;
+  text-align: center;
+}
+h1:before,
+h1:after {
+  content: "";
+  width: 20px;
+  height: 40px;
+  position: absolute;
+  display: inline-block;
+}
+h1:before {
+  border-left: solid 3px #27acd9;
+  border-top: solid 3px #27acd9;
+  top: 0;
+  left: 0;
+}
+h1:after {
+  border-right: solid 3px #27acd9;
+  border-bottom: solid 3px #27acd9;
+  bottom: 0;
+  right: 0;
+}
+h1:first-letter {
+  font-size: 2rem;
+  font: bold;
+  color: #27acd9;
+}
+
+h2 {
+  color: #505050; /*文字色*/
+  font-size: 1.2rem;
+  padding: 0.5em; /*文字周りの余白*/
+  width: 100%;
+  display: inline-block; /*おまじない*/
+  line-height: 1.3; /*行高*/
+  background: #dbebf8; /*背景色*/
+  vertical-align: middle;
+  border-radius: 25px 0px 0px 25px; /*左側の角を丸く*/
+}
+
+h2:before {
+  content: "●";
+  color: white;
+  margin-right: 8px;
+}
+
+h3 {
+  font-size: 1rem;
+  background: linear-gradient(transparent 60%, #c8f1ff 60%);
+}
+
+p {
+  margin: 7px 0;
+  font-weight: 400;
+  line-height: 1.7rem;
+}
+
+ul {
+  list-style: square; /* アイコンの種類指定 */
+  margin: 30px;
+}
