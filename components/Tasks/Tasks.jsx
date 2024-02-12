@@ -8,6 +8,7 @@ const Tasks = () => {
   const [postList, setPostList] = useState([]);
   const [taskList, setTaskList] = useState([]);
   const [todo, setTodo] = useState("");
+  const [taskDay, setTaskDay] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
 
@@ -71,6 +72,7 @@ const Tasks = () => {
       const diffDays = parseInt(diffMilliSec / 1000 / 60 / 60 / 24);
       return diffDays <= 2 && diffDays >= 0;
     });
+    setStartAt(resentTasks[resentTasks.length - 1].endAt);
 
     return resentTasks;
   };
@@ -91,6 +93,12 @@ const Tasks = () => {
         value={todo}
         onChange={(e) => setTodo(e.target.value)}
         placeholder="タスク"
+        required
+      />
+      <input
+        type="date"
+        value={taskDay}
+        onChange={(e) => setStartAt(e.target.value)}
         required
       />
       <input
