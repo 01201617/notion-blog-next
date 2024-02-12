@@ -77,7 +77,7 @@ export const TagsInput: React.FC<TagsInputProps> = ({
   return (
     <div
       className={clsx(
-        "flex flex-wrap text-gray-700 border leading-tight pt-3 pb-2 px-4 rounded",
+        "flex flex-wrap text-gray-700 border leading-tight pt-3 pb-2 px-4 rounded bg-white",
         styles[isError ? "error" : "default"]
       )}
     >

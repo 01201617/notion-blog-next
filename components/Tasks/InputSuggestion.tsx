@@ -74,7 +74,7 @@ const InputSuggestion: React.FC<InputSuggestionProps> = ({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         {...inputParams}
-        className="w-full border border-gray-300 p-2 rounded"
+        className="w-full border border-gray-300 p-2 rounded bg-white"
       />
       <ul className="absolute z-10  bg-white shadow-md max-h-60 overflow-y-auto border border-gray-200 mt-1 rounded">
         {filteredSuggestions.map((suggestion, index) => (
