@@ -3,14 +3,17 @@ import { collection, addDoc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { format } from "date-fns";
+import TagsInput from "./TagsInput";
+import colormap from "colormap";
 
 const Tasks = () => {
-  const [postList, setPostList] = useState([]);
   const [taskList, setTaskList] = useState([]);
   const [todo, setTodo] = useState("");
   const [taskDay, setTaskDay] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+  const [tagWhats, setTagWhats] = useState(["入力"]);
+  const [tagWhatListWithColors, setTagWhatListWithColors] = useState({});
 
   const createTask = async () => {
     await addDoc(collection(db, "tasks"), {
@@ -20,7 +23,7 @@ const Tasks = () => {
       endAt: endAt,
       createdAt: new Date(),
       categories: [""],
-      tags: [""],
+      tags: tagWhats,
       author: {
         username: auth.currentUser.displayName,
         id: auth.currentUser.uid,
@@ -80,13 +83,16 @@ const Tasks = () => {
     });
     if (resentTasks[resentTasks.length - 1].taskDay) {
       setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
-    }
-    {
+    } else {
       const formattedDate = today.toISOString().split("T")[0];
       setTaskDay(formattedDate);
     }
 
     setStartAt(resentTasks[resentTasks.length - 1].endAt);
+    const resentTags = resentTasks[resentTasks.length - 1].tags;
+    if (resentTags && resentTags[0] !== "") {
+      setTagWhats(resentTags);
+    }
 
     return resentTasks;
   };
@@ -96,8 +102,40 @@ const Tasks = () => {
     setTaskList(sortTasks(taskList));
   };
 
+  const getTagWhatLists = async () => {
+    const data = await getDocs(collection(db, "tagWhats"));
+    const collectionTagWhats = data.docs.map((doc) => ({
+      ...doc.data(),
+      id: doc.id,
+    }));
+    const tagWhatLists = collectionTagWhats
+      .filter((document) => document.author?.id === auth.currentUser?.uid)
+      .map((document) => document.tag);
+    const colorSize = tagWhatLists.length > 5 ? tagWhatLists.length : 6;
+    const colors = colormap({
+      colormap: "jet",
+      nshades: colorSize,
+      format: "hex",
+      alpha: 0.5,
+    });
+    const tagColors = tagWhatLists.reduce((obj, tag, index) => {
+      obj[tag] = colors[index];
+      return obj;
+    }, {});
+    setTagWhatListWithColors(tagColors);
+  };
+
+  function getContrastYIQ(hexColor) {
+    const r = parseInt(hexColor.substr(1, 2), 16);
+    const g = parseInt(hexColor.substr(3, 2), 16);
+    const b = parseInt(hexColor.substr(5, 2), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? "grey" : "white";
+  }
+
   useEffect(() => {
     getTasks();
+    getTagWhatLists();
   }, []);
 
   return (
@@ -127,6 +165,17 @@ const Tasks = () => {
         onChange={(e) => setEndAt(e.target.value)}
         required
       />
+      <div>
+        <TagsInput
+          // tagWhatLists={Object.keys(tagWhatListWithColors)}
+          tagWhats={tagWhats}
+          tagWhatListWithColors={tagWhatListWithColors}
+          // tagColors={Object.values(tagWhatListWithColors)}
+          onChangeTags={(newTags) => {
+            setTagWhats(newTags);
+          }}
+        />
+      </div>
       <button
         className="bg-green-500 hover:bg-green-400 text-white rounded px-4 py-2"
         onClick={() => {
@@ -143,7 +192,7 @@ const Tasks = () => {
             {task.author?.id === auth.currentUser?.uid && (
               <div key={task.id} className="flex container m-auto">
                 <div className="w-72 mr-2">{task.todo}</div>
-                <div className="w-10 mr-5">
+                <div className="w-20 mr-2">
                   {task.fullTime.substring(4, 6) +
                     "/" +
                     task.fullTime.substring(6, 8)}
@@ -152,7 +201,7 @@ const Tasks = () => {
                   {task.startAt + "-" + task.endAt}
                 </div>
                 {task.startAt && (
-                  <div className="w-10 mr-2">{`${calculateTimeDifference(
+                  <div className="w-20 mr-3">{`${calculateTimeDifference(
                     task.startAt,
                     task.endAt
                   )} 分`}</div>
@@ -165,9 +214,23 @@ const Tasks = () => {
                   </div>
                 )}
                 {task.tags && (
-                  <div>
+                  <div className="flex container flex-wrap h-3">
                     {task.tags.map((tag) => (
-                      <div key={tag}>{tag}</div>
+                      <div
+                        style={{
+                          backgroundColor: tagWhatListWithColors[tag]
+                            ? tagWhatListWithColors[tag] + "90"
+                            : "#868686" + "90",
+                          color: getContrastYIQ(
+                            tagWhatListWithColors[tag]
+                              ? tagWhatListWithColors[tag]
+                              : "#FFFFFF"
+                          ),
+                        }}
+                        key={tag}
+                      >
+                        {tag}
+                      </div>
                     ))}
                   </div>
                 )}
