@@ -15,6 +15,7 @@ const Tasks = () => {
   const createTask = async () => {
     await addDoc(collection(db, "tasks"), {
       todo: todo,
+      taskDay: taskDay,
       startAt: startAt,
       endAt: endAt,
       createdAt: new Date(),
@@ -26,7 +27,8 @@ const Tasks = () => {
       },
     });
     setTodo("");
-    setStartAt("");
+    setTaskDay(taskDay);
+    setStartAt(endAt);
     setEndAt("");
   };
 
@@ -48,8 +50,12 @@ const Tasks = () => {
     });
 
     const tasksWithTime = userTasks.map((task) => {
-      console.log();
-      const yyyyMMdd = format(task.createdAt.toDate(), "yyyyMMdd");
+      let yyyyMMdd = "";
+      if (task.taskDay !== undefined && task.taskDay !== "") {
+        yyyyMMdd = format(task.taskDay, "yyyyMMdd");
+      } else {
+        yyyyMMdd = format(task.createdAt.toDate(), "yyyyMMdd");
+      }
       const time = task.startAt.split(":")[0] + task.startAt.split(":")[1];
       const fullTime = yyyyMMdd + time;
       const year = parseInt(fullTime.substring(0, 4));
@@ -72,6 +78,14 @@ const Tasks = () => {
       const diffDays = parseInt(diffMilliSec / 1000 / 60 / 60 / 24);
       return diffDays <= 2 && diffDays >= 0;
     });
+    if (resentTasks[resentTasks.length - 1].taskDay) {
+      setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
+    }
+    {
+      const formattedDate = today.toISOString().split("T")[0];
+      setTaskDay(formattedDate);
+    }
+
     setStartAt(resentTasks[resentTasks.length - 1].endAt);
 
     return resentTasks;
@@ -98,7 +112,7 @@ const Tasks = () => {
       <input
         type="date"
         value={taskDay}
-        onChange={(e) => setStartAt(e.target.value)}
+        onChange={(e) => setTaskDay(e.target.value)}
         required
       />
       <input
