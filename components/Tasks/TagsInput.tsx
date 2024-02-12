@@ -18,8 +18,6 @@ const styles = {
   error: "border-red-500 focus:bg-white focus:border-gray-500",
 };
 
-/* eslint @typescript-eslint/no-unused-vars: 0 */
-/* eslint react/prop-types: 0 */
 export const TagsInput: React.FC<TagsInputProps> = ({
   onChangeTags,
   tagWhats = [],

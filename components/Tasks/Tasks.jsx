@@ -79,7 +79,7 @@ const Tasks = () => {
     const resentTasks = sortedTasks.filter((task) => {
       const diffMilliSec = today - task.fullTimeDate;
       const diffDays = parseInt(diffMilliSec / 1000 / 60 / 60 / 24);
-      return diffDays <= 2 && diffDays >= 0;
+      return diffDays <= 1 && diffDays >= 0;
     });
     if (resentTasks[resentTasks.length - 1].taskDay) {
       setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
