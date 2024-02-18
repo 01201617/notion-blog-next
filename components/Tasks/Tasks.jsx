@@ -16,23 +16,26 @@ const Tasks = () => {
   const [tagWhatListWithColors, setTagWhatListWithColors] = useState({});
 
   const createTask = async () => {
-    await addDoc(collection(db, "tasks"), {
-      todo: todo,
-      taskDay: taskDay,
-      startAt: startAt,
-      endAt: endAt,
-      createdAt: new Date(),
-      categories: [""],
-      tags: tagWhats,
-      author: {
-        username: auth.currentUser.displayName,
-        id: auth.currentUser.uid,
-      },
-    });
-    setTodo("");
-    setTaskDay(taskDay);
-    setStartAt(endAt);
-    setEndAt("");
+    if (isNaN(calculateTimeDifference(startAt, endAt))) {
+    } else {
+      await addDoc(collection(db, "tasks"), {
+        todo: todo,
+        taskDay: taskDay,
+        startAt: startAt,
+        endAt: endAt,
+        createdAt: new Date(),
+        categories: [""],
+        tags: tagWhats,
+        author: {
+          username: auth.currentUser.displayName,
+          id: auth.currentUser.uid,
+        },
+      });
+      setTodo("");
+      setTaskDay(taskDay);
+      setStartAt(endAt);
+      setEndAt("");
+    }
   };
 
   const timeToMinutes = (timeString) => {
@@ -141,30 +144,33 @@ const Tasks = () => {
   return (
     <>
       <input
+        className="w-48 mb-1"
         type="text"
         value={todo}
         onChange={(e) => setTodo(e.target.value)}
         placeholder="タスク"
         required
       />
-      <input
-        type="date"
-        value={taskDay}
-        onChange={(e) => setTaskDay(e.target.value)}
-        required
-      />
-      <input
-        type="time"
-        value={startAt}
-        onChange={(e) => setStartAt(e.target.value)}
-        required
-      />
-      <input
-        type="time"
-        value={endAt}
-        onChange={(e) => setEndAt(e.target.value)}
-        required
-      />
+      <div className="flex">
+        <input
+          type="date"
+          value={taskDay}
+          onChange={(e) => setTaskDay(e.target.value)}
+          required
+        />
+        <input
+          type="time"
+          value={startAt}
+          onChange={(e) => setStartAt(e.target.value)}
+          required
+        />
+        <input
+          type="time"
+          value={endAt}
+          onChange={(e) => setEndAt(e.target.value)}
+          required
+        />
+      </div>
       <div>
         <TagsInput
           // tagWhatLists={Object.keys(tagWhatListWithColors)}
@@ -190,18 +196,18 @@ const Tasks = () => {
         return (
           <div key={index}>
             {task.author?.id === auth.currentUser?.uid && (
-              <div key={task.id} className="flex container m-auto">
-                <div className="w-72 mr-2">{task.todo}</div>
+              <div key={task.id} className="flex w-full">
+                <div className="w-full mr-2">{task.todo}</div>
                 <div className="w-20 mr-2">
                   {task.fullTime.substring(4, 6) +
                     "/" +
                     task.fullTime.substring(6, 8)}
                 </div>
-                <div className="w-40 mr-3">
+                <div className="w-64 mr-2">
                   {task.startAt + "-" + task.endAt}
                 </div>
                 {task.startAt && (
-                  <div className="w-20 mr-3">{`${calculateTimeDifference(
+                  <div className="w-32 mr-2">{`${calculateTimeDifference(
                     task.startAt,
                     task.endAt
                   )} 分`}</div>
