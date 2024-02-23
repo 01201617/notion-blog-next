@@ -144,7 +144,7 @@ const Tasks = () => {
   return (
     <>
       <input
-        className="w-48 mb-1"
+        className="h-10 w-48 mb-1"
         type="text"
         value={todo}
         onChange={(e) => setTodo(e.target.value)}
@@ -192,54 +192,61 @@ const Tasks = () => {
         task追加
       </button>
       <h2 className="my-10">Taskを表示↓</h2>
-      {taskList.map((task, index) => {
+      {taskList.map((task, index, array) => {
         return (
           <div key={index}>
             {task.author?.id === auth.currentUser?.uid && (
-              <div key={task.id} className="flex w-full">
-                <div className="w-full mr-2">{task.todo}</div>
-                <div className="w-20 mr-2">
-                  {task.fullTime.substring(4, 6) +
-                    "/" +
-                    task.fullTime.substring(6, 8)}
-                </div>
-                <div className="w-64 mr-2">
-                  {task.startAt + "-" + task.endAt}
-                </div>
-                {task.startAt && (
-                  <div className="w-32 mr-2">{`${calculateTimeDifference(
-                    task.startAt,
-                    task.endAt
-                  )} 分`}</div>
-                )}
-                {task.categories && (
-                  <div>
-                    {task.categories.map((category) => (
-                      <div key={category}>{category}</div>
-                    ))}
+              <div>
+                {index > 0 &&
+                  array[index - 1].fullTime.substring(4, 8) !==
+                    task.fullTime.substring(4, 8) && (
+                    <hr className="border my-4 border-gray-200" />
+                  )}
+                <div key={task.id} className="flex w-full">
+                  <div className="w-full mr-2">{task.todo}</div>
+                  <div className="w-20 mr-2">
+                    {task.fullTime.substring(4, 6) +
+                      "/" +
+                      task.fullTime.substring(6, 8)}
                   </div>
-                )}
-                {task.tags && (
-                  <div className="flex container flex-wrap h-3">
-                    {task.tags.map((tag) => (
-                      <div
-                        style={{
-                          backgroundColor: tagWhatListWithColors[tag]
-                            ? tagWhatListWithColors[tag] + "90"
-                            : "#868686" + "90",
-                          color: getContrastYIQ(
-                            tagWhatListWithColors[tag]
-                              ? tagWhatListWithColors[tag]
-                              : "#FFFFFF"
-                          ),
-                        }}
-                        key={tag}
-                      >
-                        {tag}
-                      </div>
-                    ))}
+                  <div className="w-64 mr-2">
+                    {task.startAt + "-" + task.endAt}
                   </div>
-                )}
+                  {task.startAt && (
+                    <div className="w-32 mr-2">{`${calculateTimeDifference(
+                      task.startAt,
+                      task.endAt
+                    )} 分`}</div>
+                  )}
+                  {task.categories && (
+                    <div>
+                      {task.categories.map((category) => (
+                        <div key={category}>{category}</div>
+                      ))}
+                    </div>
+                  )}
+                  {task.tags && (
+                    <div className="flex container flex-wrap h-3">
+                      {task.tags.map((tag) => (
+                        <div
+                          style={{
+                            backgroundColor: tagWhatListWithColors[tag]
+                              ? tagWhatListWithColors[tag] + "90"
+                              : "#868686" + "90",
+                            color: getContrastYIQ(
+                              tagWhatListWithColors[tag]
+                                ? tagWhatListWithColors[tag]
+                                : "#FFFFFF"
+                            ),
+                          }}
+                          key={tag}
+                        >
+                          {tag}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

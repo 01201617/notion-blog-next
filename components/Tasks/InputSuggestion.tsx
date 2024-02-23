@@ -76,9 +76,9 @@ const InputSuggestion: React.FC<InputSuggestionProps> = ({
         {...inputParams}
         className="w-full border border-gray-300 p-2 rounded bg-white"
       />
-      <ul className="absolute z-10  bg-white shadow-md max-h-60 overflow-y-auto border border-gray-200 mt-1 rounded">
+      <ul className="flex absolute z-10  bg-white shadow-md max-h-60 overflow-y-auto border border-gray-200 mt-1 rounded">
         {filteredSuggestions.map((suggestion, index) => (
-          <li
+          <div
             key={index}
             className="p-2 hover:bg-gray-100 cursor-pointer"
             style={{
@@ -88,7 +88,7 @@ const InputSuggestion: React.FC<InputSuggestionProps> = ({
             onClick={() => handleSuggestionClick(suggestion.word)}
           >
             {suggestion.word}
-          </li>
+          </div>
         ))}
       </ul>
     </div>
