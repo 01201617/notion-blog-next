@@ -12,8 +12,12 @@ const Tasks = () => {
   const [taskDay, setTaskDay] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
-  const [tagWhats, setTagWhats] = useState(["入力"]);
+  const [tagWhats, setTagWhats] = useState(["What"]);
+  const [tagWhos, setTagWhos] = useState(["Who"]);
+  const [tagWheres, setTagWheres] = useState(["Where"]);
   const [tagWhatListWithColors, setTagWhatListWithColors] = useState({});
+  const [tagWhoListWithColors, setTagWhoListWithColors] = useState({});
+  const [tagWhereListWithColors, setTagWhereListWithColors] = useState({});
 
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
@@ -26,6 +30,8 @@ const Tasks = () => {
         createdAt: new Date(),
         categories: [""],
         tags: tagWhats,
+        tagWhos: tagWhos,
+        tagWheres: tagWheres,
         author: {
           username: auth.currentUser.displayName,
           id: auth.currentUser.uid,
@@ -97,6 +103,16 @@ const Tasks = () => {
       setTagWhats(resentTags);
     }
 
+    const resentTagWhos = resentTasks[resentTasks.length - 1].tagWhos;
+    if (resentTagWhos && resentTagWhos[0] !== "") {
+      setTagWhos(resentTagWhos);
+    }
+
+    const resentTagWheres = resentTasks[resentTasks.length - 1].tagWheres;
+    if (resentTagWheres && resentTagWheres[0] !== "") {
+      setTagWheres(resentTagWheres);
+    }
+
     return resentTasks;
   };
   const getTasks = async () => {
@@ -105,27 +121,33 @@ const Tasks = () => {
     setTaskList(sortTasks(taskList));
   };
 
-  const getTagWhatLists = async () => {
-    const data = await getDocs(collection(db, "tagWhats"));
-    const collectionTagWhats = data.docs.map((doc) => ({
+  const getTagLists = async (tagKind) => {
+    const data = await getDocs(collection(db, tagKind));
+    const collectionTags = data.docs.map((doc) => ({
       ...doc.data(),
       id: doc.id,
     }));
-    const tagWhatLists = collectionTagWhats
+    const tagLists = collectionTags
       .filter((document) => document.author?.id === auth.currentUser?.uid)
       .map((document) => document.tag);
-    const colorSize = tagWhatLists.length > 5 ? tagWhatLists.length : 6;
+    const colorSize = tagLists.length > 5 ? tagLists.length : 6;
     const colors = colormap({
       colormap: "jet",
       nshades: colorSize,
       format: "hex",
       alpha: 0.5,
     });
-    const tagColors = tagWhatLists.reduce((obj, tag, index) => {
+    const tagColors = tagLists.reduce((obj, tag, index) => {
       obj[tag] = colors[index];
       return obj;
     }, {});
-    setTagWhatListWithColors(tagColors);
+    if (tagKind === "tagWhats") {
+      setTagWhatListWithColors(tagColors);
+    } else if (tagKind === "tagWhos") {
+      setTagWhoListWithColors(tagColors);
+    } else if (tagKind === "tagWheres") {
+      setTagWhereListWithColors(tagColors);
+    }
   };
 
   function getContrastYIQ(hexColor) {
@@ -138,7 +160,9 @@ const Tasks = () => {
 
   useEffect(() => {
     getTasks();
-    getTagWhatLists();
+    getTagLists("tagWhats");
+    getTagLists("tagWhos");
+    getTagLists("tagWheres");
   }, []);
 
   return (
@@ -173,15 +197,35 @@ const Tasks = () => {
       </div>
       <div>
         <TagsInput
-          // tagWhatLists={Object.keys(tagWhatListWithColors)}
+          tagKind={"tagWhats"}
           tagWhats={tagWhats}
           tagWhatListWithColors={tagWhatListWithColors}
-          // tagColors={Object.values(tagWhatListWithColors)}
           onChangeTags={(newTags) => {
             setTagWhats(newTags);
           }}
         />
       </div>
+      <div>
+        <TagsInput
+          tagKind={"tagWhos"}
+          tagWhats={tagWhos}
+          tagWhatListWithColors={tagWhoListWithColors}
+          onChangeTags={(newTags) => {
+            setTagWhos(newTags);
+          }}
+        />
+      </div>
+      <div>
+        <TagsInput
+          tagKind={"tagWheres"}
+          tagWhats={tagWheres}
+          tagWhatListWithColors={tagWhereListWithColors}
+          onChangeTags={(newTags) => {
+            setTagWheres(newTags);
+          }}
+        />
+      </div>
+
       <button
         className="bg-green-500 hover:bg-green-400 text-white rounded px-4 py-2"
         onClick={() => {
@@ -225,27 +269,71 @@ const Tasks = () => {
                       ))}
                     </div>
                   )}
-                  {task.tags && (
-                    <div className="flex container flex-wrap h-3">
-                      {task.tags.map((tag) => (
-                        <div
-                          style={{
-                            backgroundColor: tagWhatListWithColors[tag]
-                              ? tagWhatListWithColors[tag] + "90"
-                              : "#868686" + "90",
-                            color: getContrastYIQ(
-                              tagWhatListWithColors[tag]
-                                ? tagWhatListWithColors[tag]
-                                : "#FFFFFF"
-                            ),
-                          }}
-                          key={tag}
-                        >
-                          {tag}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex container flex-wrap h-3  justify-between">
+                    {task.tags && (
+                      <div className="flex">
+                        {task.tags.map((tag) => (
+                          <div
+                            style={{
+                              backgroundColor: tagWhatListWithColors[tag]
+                                ? tagWhatListWithColors[tag] + "90"
+                                : "#868686" + "90",
+                              color: getContrastYIQ(
+                                tagWhatListWithColors[tag]
+                                  ? tagWhatListWithColors[tag]
+                                  : "#FFFFFF"
+                              ),
+                            }}
+                            key={tag}
+                          >
+                            {tag}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {task.tagWhos && (
+                      <div className="flex">
+                        {task.tagWhos.map((tag) => (
+                          <div
+                            style={{
+                              backgroundColor: tagWhoListWithColors[tag]
+                                ? tagWhoListWithColors[tag] + "90"
+                                : "#868686" + "90",
+                              color: getContrastYIQ(
+                                tagWhoListWithColors[tag]
+                                  ? tagWhoListWithColors[tag]
+                                  : "#FFFFFF"
+                              ),
+                            }}
+                            key={tag}
+                          >
+                            {tag}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {task.tagWheres && (
+                      <div className="flex">
+                        {task.tagWheres.map((tag) => (
+                          <div
+                            style={{
+                              backgroundColor: tagWhereListWithColors[tag]
+                                ? tagWhereListWithColors[tag] + "90"
+                                : "#868686" + "90",
+                              color: getContrastYIQ(
+                                tagWhereListWithColors[tag]
+                                  ? tagWhereListWithColors[tag]
+                                  : "#FFFFFF"
+                              ),
+                            }}
+                            key={tag}
+                          >
+                            {tag}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

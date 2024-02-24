@@ -8,6 +8,7 @@ import { collection, addDoc } from "firebase/firestore";
 
 type TagsInputProps = React.ComponentPropsWithoutRef<"input"> & {
   isError?: boolean;
+  tagKind: string;
   tagWhats: string[];
   tagWhatListWithColors: { [key: string]: string };
   onChangeTags?: (tags: string[]) => void;
@@ -19,6 +20,7 @@ const styles = {
 };
 
 export const TagsInput: React.FC<TagsInputProps> = ({
+  tagKind,
   onChangeTags,
   tagWhats = [],
   tagWhatListWithColors,
@@ -32,7 +34,7 @@ export const TagsInput: React.FC<TagsInputProps> = ({
   }));
 
   const updateTagWhatLists = async (word: string) => {
-    await addDoc(collection(db, "tagWhats"), {
+    await addDoc(collection(db, tagKind), {
       tag: word,
       author: {
         username: auth.currentUser?.displayName,
