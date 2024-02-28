@@ -5,6 +5,7 @@ import { auth, db } from "./firebase";
 import { format } from "date-fns";
 import TagsInput from "./TagsInput";
 import colormap from "colormap";
+import { AnalysisChart } from "./AnalysisChart";
 
 const Tasks = () => {
   const [taskList, setTaskList] = useState([]);
@@ -56,7 +57,7 @@ const Tasks = () => {
     return Math.abs(minutes1 - minutes2);
   };
 
-  const sortTasks = (taskList) => {
+  const sortTasks = (taskList, startDay, endDay) => {
     const userTasks = taskList.filter((task) => {
       return task.author?.id === auth.currentUser?.uid;
     });
@@ -88,7 +89,7 @@ const Tasks = () => {
     const resentTasks = sortedTasks.filter((task) => {
       const diffMilliSec = today - task.fullTimeDate;
       const diffDays = parseInt(diffMilliSec / 1000 / 60 / 60 / 24);
-      return diffDays <= 1 && diffDays >= 0;
+      return diffDays <= 3 && diffDays >= 0;
     });
     if (resentTasks[resentTasks.length - 1].taskDay) {
       setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
@@ -118,7 +119,7 @@ const Tasks = () => {
   const getTasks = async () => {
     const data = await getDocs(collection(db, "tasks"));
     const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    setTaskList(sortTasks(taskList));
+    setTaskList(sortTasks(taskList, 10, 10));
   };
 
   const getTagLists = async (tagKind) => {
@@ -340,6 +341,10 @@ const Tasks = () => {
           </div>
         );
       })}
+      <AnalysisChart
+        taskList={taskList}
+        tagWhatListWithColors={tagWhatListWithColors}
+      />
     </>
   );
 };
