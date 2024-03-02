@@ -21,9 +21,14 @@ const Tasks = () => {
   const [tagWhoListWithColors, setTagWhoListWithColors] = useState({});
   const [tagWhereListWithColors, setTagWhereListWithColors] = useState({});
   const today = new Date();
-  const threeDaysAgo = subDays(new Date(), 3);
+  const [accountStartDay, setAccountStartDay] = useState(
+    format(subDays(new Date(), 1), "yyyy-MM-dd")
+  );
+  const [accountEndDay, setAccountEndDay] = useState(
+    format(today, "yyyy-MM-dd")
+  );
   const [analysisStartDay, setAnalysisStartDay] = useState(
-    format(threeDaysAgo, "yyyy-MM-dd")
+    format(subDays(new Date(), 3), "yyyy-MM-dd")
   );
   const [analysisEndDay, setAnalysisEndDay] = useState(
     format(today, "yyyy-MM-dd")
@@ -133,13 +138,7 @@ const Tasks = () => {
   const getTaskList = async () => {
     const data = await getDocs(collection(db, "tasks"));
     const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    setTaskList(
-      sortTasks(
-        taskList,
-        format(subDays(new Date(), 1), "yyyy-MM-dd"),
-        format(today, "yyyy-MM-dd")
-      )
-    );
+    setTaskList(sortTasks(taskList, accountStartDay, accountEndDay));
   };
   const getTaskAnalysis = async () => {
     const data = await getDocs(collection(db, "tasks"));
@@ -186,11 +185,10 @@ const Tasks = () => {
 
   useEffect(() => {
     getTaskList();
-    getTaskAnalysis();
     getTagLists("tagWhats");
     getTagLists("tagWhos");
     getTagLists("tagWheres");
-  }, []);
+  }, [accountStartDay, accountEndDay]);
 
   useEffect(() => {
     getTaskAnalysis();
@@ -267,6 +265,24 @@ const Tasks = () => {
         task追加
       </button>
       <h2 className="my-10">Taskを表示↓</h2>
+      <div className="flex">
+        <p className="text-gray-500 bg-slate-100">開始日</p>
+        <input
+          type="date"
+          value={accountStartDay}
+          onChange={(e) => setAccountStartDay(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex mb-2">
+        <p className="text-gray-500 bg-slate-100">終了日</p>
+        <input
+          type="date"
+          value={accountEndDay}
+          onChange={(e) => setAccountEndDay(e.target.value)}
+          required
+        />
+      </div>
       {taskList.map((task, index, array) => {
         return (
           <div key={index}>
@@ -371,7 +387,7 @@ const Tasks = () => {
           </div>
         );
       })}
-      <div className="flex mt-5">
+      <div className="flex m-5">
         <p className="text-gray-500 bg-slate-100">開始日</p>
         <input
           type="date"
