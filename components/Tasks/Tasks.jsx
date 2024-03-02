@@ -2,13 +2,14 @@
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
-import { format } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import TagsInput from "./TagsInput";
 import colormap from "colormap";
 import { AnalysisChart } from "./AnalysisChart";
 
 const Tasks = () => {
   const [taskList, setTaskList] = useState([]);
+  const [taskAnalysis, setTaskAnalysis] = useState([]);
   const [todo, setTodo] = useState("");
   const [taskDay, setTaskDay] = useState("");
   const [startAt, setStartAt] = useState("");
@@ -19,6 +20,14 @@ const Tasks = () => {
   const [tagWhatListWithColors, setTagWhatListWithColors] = useState({});
   const [tagWhoListWithColors, setTagWhoListWithColors] = useState({});
   const [tagWhereListWithColors, setTagWhereListWithColors] = useState({});
+  const today = new Date();
+  const threeDaysAgo = subDays(new Date(), 3);
+  const [analysisStartDay, setAnalysisStartDay] = useState(
+    format(threeDaysAgo, "yyyy-MM-dd")
+  );
+  const [analysisEndDay, setAnalysisEndDay] = useState(
+    format(today, "yyyy-MM-dd")
+  );
 
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
@@ -85,11 +94,16 @@ const Tasks = () => {
       return a.fullTime > b.fullTime ? 1 : -1;
     });
 
-    const today = new Date();
     const resentTasks = sortedTasks.filter((task) => {
-      const diffMilliSec = today - task.fullTimeDate;
-      const diffDays = parseInt(diffMilliSec / 1000 / 60 / 60 / 24);
-      return diffDays <= 3 && diffDays >= 0;
+      const diffMilliSecFromStart = parseISO(startDay) - task.fullTimeDate;
+      const diffDaysFromStart = parseInt(
+        diffMilliSecFromStart / 1000 / 60 / 60 / 24
+      );
+      const diffMilliSecFromEnd = parseISO(endDay) - task.fullTimeDate;
+      const diffDaysFromEnd = parseInt(
+        diffMilliSecFromEnd / 1000 / 60 / 60 / 24
+      );
+      return diffDaysFromStart <= 0 && diffDaysFromEnd >= 0;
     });
     if (resentTasks[resentTasks.length - 1].taskDay) {
       setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
@@ -116,10 +130,21 @@ const Tasks = () => {
 
     return resentTasks;
   };
-  const getTasks = async () => {
+  const getTaskList = async () => {
     const data = await getDocs(collection(db, "tasks"));
     const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    setTaskList(sortTasks(taskList, 10, 10));
+    setTaskList(
+      sortTasks(
+        taskList,
+        format(subDays(new Date(), 1), "yyyy-MM-dd"),
+        format(today, "yyyy-MM-dd")
+      )
+    );
+  };
+  const getTaskAnalysis = async () => {
+    const data = await getDocs(collection(db, "tasks"));
+    const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+    setTaskAnalysis(sortTasks(taskList, analysisStartDay, analysisEndDay));
   };
 
   const getTagLists = async (tagKind) => {
@@ -160,11 +185,16 @@ const Tasks = () => {
   }
 
   useEffect(() => {
-    getTasks();
+    getTaskList();
+    getTaskAnalysis();
     getTagLists("tagWhats");
     getTagLists("tagWhos");
     getTagLists("tagWheres");
   }, []);
+
+  useEffect(() => {
+    getTaskAnalysis();
+  }, [analysisStartDay, analysisEndDay]);
 
   return (
     <>
@@ -231,7 +261,7 @@ const Tasks = () => {
         className="bg-green-500 hover:bg-green-400 text-white rounded px-4 py-2"
         onClick={() => {
           createTask();
-          getTasks();
+          getTaskList();
         }}
       >
         task追加
@@ -341,8 +371,27 @@ const Tasks = () => {
           </div>
         );
       })}
+      <div className="flex mt-5">
+        <p className="text-gray-500 bg-slate-100">開始日</p>
+        <input
+          type="date"
+          value={analysisStartDay}
+          onChange={(e) => setAnalysisStartDay(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex">
+        <p className="text-gray-500 bg-slate-100">終了日</p>
+        <input
+          type="date"
+          value={analysisEndDay}
+          onChange={(e) => setAnalysisEndDay(e.target.value)}
+          required
+        />
+      </div>
+
       <AnalysisChart
-        taskList={taskList}
+        taskList={taskAnalysis}
         tagWhatListWithColors={tagWhatListWithColors}
       />
     </>

@@ -26,6 +26,7 @@ ChartJS.register(
   LineController,
   BarController
 );
+import { isValid } from "date-fns";
 
 const labels = ["January", "February", "March", "April", "May", "June", "July"];
 
@@ -153,6 +154,9 @@ export const AnalysisChart = ({ taskList, tagWhatListWithColors }: Props) => {
       const { date, tags, hour } = entry;
       // dateをDateオブジェクトに変換します（既にDateオブジェクトである場合はそのまま使用します）。
       const dateObj = new Date(date);
+      if (!isValid(dateObj)) {
+        return false; // 無効な場合はフィルタリング
+      }
       const dateString = dateObj.toISOString().split("T")[0]; // YYYY-MM-DD形式の文字列に変換
 
       if (!tagHours[dateString]) {
