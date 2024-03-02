@@ -33,6 +33,7 @@ const Tasks = () => {
   const [analysisEndDay, setAnalysisEndDay] = useState(
     format(today, "yyyy-MM-dd")
   );
+  const [dayUnit, setDayUnit] = useState(1);
 
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
@@ -387,7 +388,7 @@ const Tasks = () => {
           </div>
         );
       })}
-      <div className="flex m-5">
+      <div className="flex mt-5">
         <p className="text-gray-500 bg-slate-100">開始日</p>
         <input
           type="date"
@@ -405,9 +406,20 @@ const Tasks = () => {
           required
         />
       </div>
+      <div className="flex">
+        <p className="text-gray-500 bg-slate-100">まとめ日数</p>
+        <input
+          className="w-10"
+          type="number"
+          value={dayUnit}
+          onChange={(e) => setDayUnit(parseInt(e.target.value))}
+          required
+        />
+      </div>
 
       <AnalysisChart
         taskList={taskAnalysis}
+        dayUnit={dayUnit}
         tagWhatListWithColors={tagWhatListWithColors}
       />
     </>

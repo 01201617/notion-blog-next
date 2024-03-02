@@ -26,7 +26,7 @@ ChartJS.register(
   LineController,
   BarController
 );
-import { isValid } from "date-fns";
+import { format, subDays, isValid } from "date-fns";
 
 const labels = ["January", "February", "March", "April", "May", "June", "July"];
 
@@ -58,15 +58,6 @@ export const data = {
   ],
 };
 
-// データセットの型を拡張して、チャートのタイプごとに型を用意します。
-type LineDataset = ChartDataset<"line"> & {
-  data: number[];
-};
-
-type BarDataset = ChartDataset<"bar"> & {
-  data: number[];
-};
-
 type taskList = {
   todo: string;
   taskDay: Date;
@@ -83,31 +74,6 @@ type taskList = {
   };
 };
 
-type graphData = {
-  labels: string[];
-  datasets: (
-    | {
-        type: "line";
-        label: string;
-        borderColor: string;
-        borderWidth: number;
-        fill: boolean;
-        data: number[];
-        backgroundColor?: undefined;
-      }
-    | {
-        type: "bar";
-        label: string;
-        backgroundColor: string;
-        data: number[];
-        borderColor: string;
-        borderWidth: number;
-        fill?: undefined;
-      }
-    | null
-  )[];
-};
-
 interface TimeEntry {
   date: Date;
   tags: string[];
@@ -116,10 +82,15 @@ interface TimeEntry {
 
 type Props = {
   taskList: taskList[];
+  dayUnit: number;
   tagWhatListWithColors: { [key: string]: string };
 };
 
-export const AnalysisChart = ({ taskList, tagWhatListWithColors }: Props) => {
+export const AnalysisChart = ({
+  taskList,
+  dayUnit,
+  tagWhatListWithColors,
+}: Props) => {
   const [graphData, setGraphData] =
     useState<ChartData<"line" | "bar", number[], string>>(data);
 
@@ -146,10 +117,29 @@ export const AnalysisChart = ({ taskList, tagWhatListWithColors }: Props) => {
   };
 
   function calculateTagHours(
-    entries: TimeEntry[]
+    entries: TimeEntry[],
+    dayUnit: number
   ): Record<string, { tag: string; hours: number }[]> {
+    // tagHoursをentriesから作成（準備）
     const tagHours: Record<string, Record<string, number>> = {};
+    let dayCount = 1;
+    // entriesの中から最初の有効なdateを検索
+    let lastProcessedDate = "";
+    for (const entry of entries) {
+      const dateObj = new Date(entry.date);
+      if (isValid(dateObj)) {
+        lastProcessedDate = dateObj.toISOString().split("T")[0];
+        break; // 最初の有効な日付を見つけたらループを抜ける
+      }
+    }
 
+    // 有効な日付が一つもない場合のフォールバック
+    if (!lastProcessedDate) {
+      lastProcessedDate = format(new Date(), "yyyy-MM-dd");
+    }
+    let displayDay = lastProcessedDate;
+
+    // tagHoursをentriesから作成(メイン)
     entries.forEach((entry) => {
       const { date, tags, hour } = entry;
       // dateをDateオブジェクトに変換します（既にDateオブジェクトである場合はそのまま使用します）。
@@ -158,18 +148,32 @@ export const AnalysisChart = ({ taskList, tagWhatListWithColors }: Props) => {
         return false; // 無効な場合はフィルタリング
       }
       const dateString = dateObj.toISOString().split("T")[0]; // YYYY-MM-DD形式の文字列に変換
+      if (displayDay === "") {
+        displayDay = dateString;
+      }
+      // 日付が変わったらdayCountをインクリメント
+      if (dateString !== lastProcessedDate) {
+        dayCount++;
+        lastProcessedDate = dateString; // 最後に処理された日付を更新
+      }
 
-      if (!tagHours[dateString]) {
-        tagHours[dateString] = {};
+      // dayUnitの周期ごとにdisplayDayを更新
+      if (dayCount > dayUnit) {
+        displayDay = dateString;
+        dayCount = 1; // dayUnit周期の最初の日からカウントをリセット
+      }
+
+      if (!tagHours[displayDay]) {
+        tagHours[displayDay] = {};
       }
 
       const timePerTag = hour / tags.length;
 
       tags.forEach((tag) => {
-        if (!tagHours[dateString][tag]) {
-          tagHours[dateString][tag] = 0;
+        if (!tagHours[displayDay][tag]) {
+          tagHours[displayDay][tag] = 0;
         }
-        tagHours[dateString][tag] += timePerTag;
+        tagHours[displayDay][tag] += timePerTag;
       });
     });
 
@@ -186,47 +190,6 @@ export const AnalysisChart = ({ taskList, tagWhatListWithColors }: Props) => {
     });
 
     return sortedTagHours;
-  }
-
-  function sortTasksByTotalHours(
-    tagHours: Record<string, { tag: string; hours: number }[]>
-  ): Record<string, { tag: string; hours: number }[]> {
-    // ステップ1: 全タスクの合計時間を計算
-    const totalHoursPerTag: Record<string, number> = {};
-
-    Object.values(tagHours)
-      .flat()
-      .forEach(({ tag, hours }) => {
-        if (!totalHoursPerTag[tag]) {
-          totalHoursPerTag[tag] = 0;
-        }
-        totalHoursPerTag[tag] += hours;
-      });
-
-    // ステップ2: タスクを合計時間に基づいて並び替えるためのタグのリストを生成
-    const tagsSortedByTotalHours = Object.entries(totalHoursPerTag)
-      .sort((a, b) => b[1] - a[1])
-      .map(([tag]) => tag);
-
-    // ステップ3: 各日にわたるタスクを並び替え
-    const sortedTagHoursByTotal: Record<
-      string,
-      { tag: string; hours: number }[]
-    > = {};
-
-    Object.keys(tagHours).forEach((date) => {
-      const dayTags = tagHours[date];
-      const sortedDayTags = tagsSortedByTotalHours.map((sortedTag) => {
-        const tagData = dayTags.find(({ tag }) => tag === sortedTag);
-        return tagData || { tag: sortedTag, hours: 0 }; // タグがその日に存在しない場合は0時間として扱う
-      });
-
-      sortedTagHoursByTotal[date] = sortedDayTags.filter(
-        (tagData) => tagData.hours > 0
-      ); // 0時間のタグを除外
-    });
-
-    return sortedTagHoursByTotal;
   }
 
   const createGraphData = (
@@ -277,9 +240,9 @@ export const AnalysisChart = ({ taskList, tagWhatListWithColors }: Props) => {
 
   useEffect(() => {
     const entries = tagsWithHour(taskList);
-    const tagHours = calculateTagHours(entries);
+    const tagHours = calculateTagHours(entries, dayUnit);
     createGraphData(tagHours);
-  }, [taskList]);
+  }, [taskList, dayUnit]);
 
   return <Chart type="bar" data={graphData} />;
 };
