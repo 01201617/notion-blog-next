@@ -6,6 +6,7 @@ import { format, subDays, parseISO } from "date-fns";
 import TagsInput from "./TagsInput";
 import colormap from "colormap";
 import { AnalysisChart } from "./AnalysisChart";
+import CustomCalendar from "./CustomCalendar";
 
 const Tasks = () => {
   const [taskList, setTaskList] = useState([]);
@@ -183,6 +184,16 @@ const Tasks = () => {
     const yiq = (r * 299 + g * 587 + b * 114) / 1000;
     return yiq >= 128 ? "#969696" : "white";
   }
+
+  const myEventsList = [
+    {
+      title: "タスク1",
+      start: new Date(2024, 3, 20, 9, 0, 0),
+      end: new Date(2024, 3, 20, 10, 0, 0),
+      color: "#f0ad4e", // イベントの背景色
+    },
+    // 他のイベント...
+  ];
 
   useEffect(() => {
     getTaskList();
@@ -422,6 +433,12 @@ const Tasks = () => {
         dayUnit={dayUnit}
         tagWhatListWithColors={tagWhatListWithColors}
       />
+      <div className="container mx-auto">
+        <CustomCalendar
+          taskList={taskAnalysis}
+          tagWhatListWithColors={tagWhatListWithColors}
+        />
+      </div>
     </>
   );
 };
