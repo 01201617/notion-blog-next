@@ -1,5 +1,11 @@
 "use client";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { format, subDays, parseISO } from "date-fns";
@@ -35,6 +41,7 @@ const Tasks = () => {
     format(today, "yyyy-MM-dd")
   );
   const [dayUnit, setDayUnit] = useState(1);
+  const [checkedIds, setCheckedIds] = useState([]);
 
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
@@ -185,15 +192,30 @@ const Tasks = () => {
     return yiq >= 128 ? "#969696" : "white";
   }
 
-  const myEventsList = [
-    {
-      title: "タスク1",
-      start: new Date(2024, 3, 20, 9, 0, 0),
-      end: new Date(2024, 3, 20, 10, 0, 0),
-      color: "#f0ad4e", // イベントの背景色
-    },
-    // 他のイベント...
-  ];
+  // チェックボックスの状態を管理する関数
+  const handleCheckboxChange = (id) => {
+    setCheckedIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((itemId) => itemId !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // 選択されたタスクを削除する関数
+  const deleteSelectedTasks = async () => {
+    if (window.confirm("選択したタスクを削除しますか？")) {
+      await Promise.all(
+        checkedIds.map((id) => {
+          const taskDoc = doc(db, "tasks", id);
+          return deleteDoc(taskDoc);
+        })
+      );
+      getTaskList();
+      setCheckedIds([]);
+    }
+  };
 
   useEffect(() => {
     getTaskList();
@@ -276,6 +298,12 @@ const Tasks = () => {
       >
         task追加
       </button>
+      <button
+        className="bg-slate-400 hover:slate-200 text-white rounded mx-2 px-4 py-2"
+        onClick={deleteSelectedTasks}
+      >
+        選択したタスクを削除
+      </button>
       <h2 className="my-10">Taskを表示↓</h2>
       <div className="flex">
         <p className="text-gray-500 bg-slate-100">開始日</p>
@@ -306,6 +334,12 @@ const Tasks = () => {
                     <hr className="border my-4 border-gray-200" />
                   )}
                 <div key={task.id} className="flex w-full">
+                  <input
+                    className="w-10"
+                    type="checkbox"
+                    checked={checkedIds.includes(task.id)}
+                    onChange={() => handleCheckboxChange(task.id)}
+                  />
                   <div className="w-full mr-2">{task.todo}</div>
                   <div className="w-20 mr-2">
                     {task.fullTime.substring(4, 6) +
