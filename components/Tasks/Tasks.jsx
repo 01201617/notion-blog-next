@@ -5,6 +5,7 @@ import {
   getDocs,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
@@ -42,6 +43,7 @@ const Tasks = () => {
   );
   const [dayUnit, setDayUnit] = useState(1);
   const [checkedIds, setCheckedIds] = useState([]);
+  const [checkedRenewIds, setCheckedRenewId] = useState();
 
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
@@ -217,6 +219,47 @@ const Tasks = () => {
     }
   };
 
+  const handleCopyList = (task) => {
+    setTodo(task.todo);
+    setTaskDay(task.taskDay);
+    setStartAt(task.startAt);
+    setEndAt(task.endAt);
+    setTagWhats(task.tags);
+    setTagWheres(task.tagWheres);
+    setTagWhos(task.tagWhos);
+    setCheckedRenewId(task.id);
+  };
+
+  // タスクを更新する関数
+  const updateTask = async () => {
+    const taskDocRef = doc(db, "tasks", checkedRenewIds);
+    try {
+      await updateDoc(taskDocRef, {
+        todo: todo,
+        taskDay: taskDay,
+        startAt: startAt,
+        endAt: endAt,
+        createdAt: new Date(),
+        categories: [""],
+        tags: tagWhats,
+        tagWhos: tagWhos,
+        tagWheres: tagWheres,
+        author: {
+          username: auth.currentUser.displayName,
+          id: auth.currentUser.uid,
+        },
+      });
+      getTaskList();
+      setTodo("");
+      setTaskDay(taskDay);
+      setStartAt(endAt);
+      setEndAt("");
+      console.log("Document successfully updated!");
+    } catch (error) {
+      console.error("Error updating document: ", error);
+    }
+  };
+
   useEffect(() => {
     getTaskList();
     getTagLists("tagWhats");
@@ -290,13 +333,21 @@ const Tasks = () => {
       </div>
 
       <button
-        className="bg-green-500 hover:bg-green-400 text-white rounded px-4 py-2"
+        className="bg-green-500 hover:bg-green-400 text-white rounded mx-2 px-4 py-2"
         onClick={() => {
           createTask();
           getTaskList();
         }}
       >
         task追加
+      </button>
+      <button
+        className="bg-cyan-300 hover:bg-cyan-100 text-white rounded mx-2  px-4 py-2"
+        onClick={() => {
+          updateTask();
+        }}
+      >
+        task修正
       </button>
       <button
         className="bg-slate-400 hover:slate-200 text-white rounded mx-2 px-4 py-2"
@@ -340,6 +391,12 @@ const Tasks = () => {
                     checked={checkedIds.includes(task.id)}
                     onChange={() => handleCheckboxChange(task.id)}
                   />
+                  <button
+                    className="bg-cyan-300 hover:bg-cyan-100 text-white rounded mx-2  px-2 py-2"
+                    onClick={() => handleCopyList(task)}
+                  >
+                    &rarr;
+                  </button>
                   <div className="w-full mr-2">{task.todo}</div>
                   <div className="w-20 mr-2">
                     {task.fullTime.substring(4, 6) +
