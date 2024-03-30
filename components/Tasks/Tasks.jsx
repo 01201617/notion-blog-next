@@ -44,6 +44,10 @@ const Tasks = () => {
   const [dayUnit, setDayUnit] = useState(1);
   const [checkedIds, setCheckedIds] = useState([]);
   const [checkedRenewIds, setCheckedRenewId] = useState();
+  const [referringDay, setReferringDay] = useState(
+    format(subDays(new Date(), 1), "yyyy-MM-dd")
+  );
+  const [copyDay, setCopyDay] = useState(format(today, "yyyy-MM-dd"));
 
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
@@ -63,6 +67,32 @@ const Tasks = () => {
           id: auth.currentUser.uid,
         },
       });
+      setTodo("");
+      setTaskDay(taskDay);
+      setStartAt(endAt);
+      setEndAt("");
+    }
+  };
+
+  const createTasks = async (tasks, copyDay) => {
+    for (const task of tasks) {
+      if (!isNaN(calculateTimeDifference(task.startAt, task.endAt))) {
+        await addDoc(collection(db, "tasks"), {
+          todo: task.todo,
+          taskDay: copyDay,
+          startAt: task.startAt,
+          endAt: task.endAt,
+          createdAt: new Date(),
+          categories: [""],
+          tags: task.tags || [],
+          tagWhos: task.tagWhos || [],
+          tagWheres: task.tagWheres || [],
+          author: {
+            username: task.author.username,
+            id: task.author.id,
+          },
+        });
+      }
       setTodo("");
       setTaskDay(taskDay);
       setStartAt(endAt);
@@ -121,6 +151,11 @@ const Tasks = () => {
       );
       return diffDaysFromStart <= 0 && diffDaysFromEnd >= 0;
     });
+
+    if (resentTasks.length === 0) {
+      return resentTasks;
+    }
+
     if (resentTasks[resentTasks.length - 1].taskDay) {
       setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
     } else {
@@ -149,12 +184,16 @@ const Tasks = () => {
   const getTaskList = async () => {
     const data = await getDocs(collection(db, "tasks"));
     const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    setTaskList(sortTasks(taskList, accountStartDay, accountEndDay));
+    if (taskList.length > 0) {
+      setTaskList(sortTasks(taskList, accountStartDay, accountEndDay));
+    }
   };
   const getTaskAnalysis = async () => {
     const data = await getDocs(collection(db, "tasks"));
     const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    setTaskAnalysis(sortTasks(taskList, analysisStartDay, analysisEndDay));
+    if (taskList.length > 0) {
+      setTaskAnalysis(sortTasks(taskList, analysisStartDay, analysisEndDay));
+    }
   };
 
   const getTagLists = async (tagKind) => {
@@ -260,11 +299,42 @@ const Tasks = () => {
     }
   };
 
-  useEffect(() => {
+  const getTasksOnSpecificDay = (specificDay) => {
+    const tasksOnSpecificDay = taskList.filter((task) => {
+      return (
+        parseInt(task.fullTime.substring(0, 4)) ===
+          parseInt(specificDay.substring(0, 4)) &&
+        parseInt(task.fullTime.substring(4, 6)) ===
+          parseInt(specificDay.substring(5, 7)) &&
+        parseInt(task.fullTime.substring(6, 8)) ===
+          parseInt(specificDay.substring(8, 10))
+      );
+    });
+    return tasksOnSpecificDay;
+  };
+
+  const copyTasks = () => {
+    const copyTasks = getTasksOnSpecificDay(copyDay);
+    let isConfirmed = true;
+    if (copyTasks.length > 0) {
+      isConfirmed = confirm("既にデータがあります。コピーしてもいいですか？");
+    }
+    if (isConfirmed === false) {
+      return;
+    }
+    const referringTasks = getTasksOnSpecificDay(referringDay);
+    createTasks(referringTasks, copyDay);
+  };
+
+  const initialize = () => {
     getTaskList();
     getTagLists("tagWhats");
     getTagLists("tagWhos");
     getTagLists("tagWheres");
+  };
+
+  useEffect(() => {
+    initialize();
   }, [accountStartDay, accountEndDay]);
 
   useEffect(() => {
@@ -355,6 +425,31 @@ const Tasks = () => {
       >
         選択したタスクを削除
       </button>
+      <div className="flex">
+        <p className="text-gray-500 bg-slate-100">コピー元(日)</p>
+        <input
+          type="date"
+          value={referringDay}
+          onChange={(e) => setReferringDay(e.target.value)}
+          required
+        />
+        <p className="text-gray-500 bg-slate-100">コピー先(日)</p>
+        <input
+          type="date"
+          value={copyDay}
+          onChange={(e) => setCopyDay(e.target.value)}
+          required
+        />
+        <button
+          className="bg-green-500 hover:bg-green-400 text-white rounded mx-2 px-4 py-2"
+          onClick={() => {
+            copyTasks();
+            getTaskList();
+          }}
+        >
+          task1日分コピー
+        </button>
+      </div>
       <h2 className="my-10">Taskを表示↓</h2>
       <div className="flex">
         <p className="text-gray-500 bg-slate-100">開始日</p>
