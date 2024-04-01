@@ -3,6 +3,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   deleteDoc,
   doc,
   updateDoc,
@@ -14,6 +15,7 @@ import TagsInput from "./TagsInput";
 import colormap from "colormap";
 import { AnalysisChart } from "./AnalysisChart";
 import CustomCalendar from "./CustomCalendar";
+import { async } from "@firebase/util";
 
 const Tasks = () => {
   const [taskList, setTaskList] = useState([]);
@@ -49,10 +51,17 @@ const Tasks = () => {
   );
   const [copyDay, setCopyDay] = useState(format(today, "yyyy-MM-dd"));
 
+  const changeLocalTime = async () => {
+    const docRef = doc(db, "tasksUpdateTime", "1");
+    const docSnap = await getDoc(docRef);
+    const firebaseTaskUpdateTime = docSnap.data().updatedAt.toDate().getTime();
+    localStorage.setItem("updateTime", firebaseTaskUpdateTime);
+  };
+
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
     } else {
-      await addDoc(collection(db, "tasks"), {
+      const task = {
         todo: todo,
         taskDay: taskDay,
         startAt: startAt,
@@ -66,12 +75,25 @@ const Tasks = () => {
           username: auth.currentUser.displayName,
           id: auth.currentUser.uid,
         },
-      });
+      };
+      await addDoc(collection(db, "tasks"), task);
+      //ローカル保存変数も更新
+      const localTasks = JSON.parse(localStorage.getItem("tasks"));
+      const newTask = { ...task, id: "dummy" };
+      localTasks.push(newTask);
+      localStorage.setItem("tasks", JSON.stringify(localTasks));
+      changeLocalTime();
+
       setTodo("");
       setTaskDay(taskDay);
       setStartAt(endAt);
       setEndAt("");
     }
+  };
+
+  const handleCreateTask = async () => {
+    await createTask();
+    await getTaskList();
   };
 
   const createTasks = async (tasks, copyDay) => {
@@ -113,17 +135,61 @@ const Tasks = () => {
   };
 
   const sortTasks = (taskList, startDay, endDay) => {
-    const userTasks = taskList.filter((task) => {
-      return task.author?.id === auth.currentUser?.uid;
-    });
+    const userTasks = taskList
+      .filter((task) => {
+        return task.author?.id === auth.currentUser?.uid;
+      })
+      .filter((task) => {
+        const hasStartAt = task.startAt !== undefined;
+
+        let date;
+        if (task.createdAt) {
+          if (typeof task.createdAt.toDate === "function") {
+            // createdAtがFirebase Timestampオブジェクトである場合
+            date = task.createdAt.toDate();
+          } else if (task.createdAt.seconds) {
+            // createdAtが {nanoseconds: 865000000, seconds: 1708950922} の形式である場合
+            date = new Date(task.createdAt.seconds * 1000);
+          } else if (
+            typeof task.createdAt === "string" ||
+            typeof task.createdAt === "number"
+          ) {
+            // createdAtが文字列または数値（タイムスタンプ）の場合
+            date = new Date(task.createdAt);
+          }
+        }
+
+        const hasValidCreatedAt = date instanceof Date && !isNaN(date);
+
+        return hasStartAt && hasValidCreatedAt;
+      });
 
     const tasksWithTime = userTasks.map((task) => {
-      let yyyyMMdd = "";
-      if (task.taskDay !== undefined && task.taskDay !== "") {
-        yyyyMMdd = format(task.taskDay, "yyyyMMdd");
-      } else {
-        yyyyMMdd = format(task.createdAt.toDate(), "yyyyMMdd");
+      let taskDate;
+
+      // FirebaseのTimestampからDateオブジェクトを生成
+      if (typeof task.createdAt.toDate === "function") {
+        taskDate = task.createdAt.toDate();
       }
+      // {nanoseconds: xxx, seconds: xxx}形式からDateオブジェクトを生成
+      else if (task.createdAt.seconds) {
+        taskDate = new Date(task.createdAt.seconds * 1000);
+        // }
+        // // ISO 8601形式の日付文字列からDateオブジェクトを生成
+        // else if (typeof task.createdAt === "string") {
+        //   taskDate = new Date(task.createdAt);
+        // }
+        // // 既にDateオブジェクトの場合
+        // else if (task.createdAt instanceof Date) {
+        //   taskDate = task.createdAt;
+      }
+      // 予期せぬ形式の場合、現在の日付を使用
+      else {
+        taskDate = new Date();
+      }
+
+      // Dateオブジェクトを指定したフォーマットに変換
+      const yyyyMMdd = format(taskDate, "yyyyMMdd");
       const time = task.startAt.split(":")[0] + task.startAt.split(":")[1];
       const fullTime = yyyyMMdd + time;
       const year = parseInt(fullTime.substring(0, 4));
@@ -182,17 +248,43 @@ const Tasks = () => {
     return resentTasks;
   };
   const getTaskList = async () => {
-    const data = await getDocs(collection(db, "tasks"));
-    const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    if (taskList.length > 0) {
-      setTaskList(sortTasks(taskList, accountStartDay, accountEndDay));
+    const localTasks = localStorage.getItem("tasks");
+    const localTaskUpdateTime = Number(localStorage.getItem("updateTime"));
+    const docRef = doc(db, "tasksUpdateTime", "1");
+    const docSnap = await getDoc(docRef);
+    const firebaseTaskUpdateTime = docSnap.data().updatedAt.toDate().getTime();
+    if (localTasks && localTaskUpdateTime === firebaseTaskUpdateTime) {
+      setTaskList(
+        sortTasks(JSON.parse(localTasks), accountStartDay, accountEndDay)
+      );
+    } else {
+      const data = await getDocs(collection(db, "tasks"));
+      const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+      if (taskList.length > 0) {
+        localStorage.setItem("tasks", JSON.stringify(taskList));
+        localStorage.setItem("updateTime", firebaseTaskUpdateTime);
+        setTaskList(sortTasks(taskList, accountStartDay, accountEndDay));
+      }
     }
   };
   const getTaskAnalysis = async () => {
-    const data = await getDocs(collection(db, "tasks"));
-    const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-    if (taskList.length > 0) {
-      setTaskAnalysis(sortTasks(taskList, analysisStartDay, analysisEndDay));
+    const localTasks = localStorage.getItem("tasks");
+    const localTaskUpdateTime = Number(localStorage.getItem("updateTime"));
+    const docRef = doc(db, "tasksUpdateTime", "1");
+    const docSnap = await getDoc(docRef);
+    const firebaseTaskUpdateTime = docSnap.data().updatedAt.toDate().getTime();
+    if (localTasks && localTaskUpdateTime === firebaseTaskUpdateTime) {
+      setTaskAnalysis(
+        sortTasks(JSON.parse(localTasks), analysisStartDay, analysisEndDay)
+      );
+    } else {
+      const data = await getDocs(collection(db, "tasks"));
+      const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+      if (taskList.length > 0) {
+        localStorage.setItem("tasks", JSON.stringify(taskList));
+        localStorage.setItem("updateTime", firebaseTaskUpdateTime);
+        setTaskAnalysis(sortTasks(taskList, analysisStartDay, analysisEndDay));
+      }
     }
   };
 
@@ -333,6 +425,20 @@ const Tasks = () => {
     getTagLists("tagWheres");
   };
 
+  const fetchTaskList = async () => {
+    const data = await getDocs(collection(db, "tasks"));
+    const taskList = data.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+    const docRef = doc(db, "tasksUpdateTime", "1");
+    const docSnap = await getDoc(docRef);
+    const firebaseTaskUpdateTime = docSnap.data().updatedAt.toDate().getTime();
+    if (taskList.length > 0) {
+      localStorage.setItem("tasks", JSON.stringify(taskList));
+      localStorage.setItem("updateTime", firebaseTaskUpdateTime);
+      setTaskList(sortTasks(taskList, accountStartDay, accountEndDay));
+      setTaskAnalysis(sortTasks(taskList, analysisStartDay, analysisEndDay));
+    }
+  };
+
   useEffect(() => {
     initialize();
   }, [accountStartDay, accountEndDay]);
@@ -405,8 +511,7 @@ const Tasks = () => {
       <button
         className="bg-green-500 hover:bg-green-400 text-white rounded mx-2 px-4 py-2"
         onClick={() => {
-          createTask();
-          getTaskList();
+          handleCreateTask();
         }}
       >
         task追加
@@ -451,6 +556,12 @@ const Tasks = () => {
         </button>
       </div>
       <h2 className="my-10">Taskを表示↓</h2>
+      <button
+        className="bg-slate-400 hover:slate-200 text-white rounded mx-2 px-4 py-2"
+        onClick={fetchTaskList}
+      >
+        リストを更新(DBと同期)
+      </button>
       <div className="flex">
         <p className="text-gray-500 bg-slate-100">開始日</p>
         <input
@@ -469,122 +580,123 @@ const Tasks = () => {
           required
         />
       </div>
-      {taskList.map((task, index, array) => {
-        return (
-          <div key={index}>
-            {task.author?.id === auth.currentUser?.uid && (
-              <div>
-                {index > 0 &&
-                  array[index - 1].fullTime.substring(4, 8) !==
-                    task.fullTime.substring(4, 8) && (
-                    <hr className="border my-4 border-gray-200" />
-                  )}
-                <div key={task.id} className="flex w-full">
-                  <input
-                    className="w-10"
-                    type="checkbox"
-                    checked={checkedIds.includes(task.id)}
-                    onChange={() => handleCheckboxChange(task.id)}
-                  />
-                  <button
-                    className="bg-cyan-300 hover:bg-cyan-100 text-white rounded mx-2  px-2 py-2"
-                    onClick={() => handleCopyList(task)}
-                  >
-                    &rarr;
-                  </button>
-                  <div className="w-full mr-2">{task.todo}</div>
-                  <div className="w-20 mr-2">
-                    {task.fullTime.substring(4, 6) +
-                      "/" +
-                      task.fullTime.substring(6, 8)}
-                  </div>
-                  <div className="w-64 mr-2">
-                    {task.startAt + "-" + task.endAt}
-                  </div>
-                  {task.startAt && (
-                    <div className="w-32 mr-2">{`${calculateTimeDifference(
-                      task.startAt,
-                      task.endAt
-                    )} 分`}</div>
-                  )}
-                  {task.categories && (
-                    <div>
-                      {task.categories.map((category) => (
-                        <div key={category}>{category}</div>
-                      ))}
+      {taskList &&
+        taskList.map((task, index, array) => {
+          return (
+            <div key={index}>
+              {task.author?.id === auth.currentUser?.uid && (
+                <div>
+                  {index > 0 &&
+                    array[index - 1].fullTime.substring(4, 8) !==
+                      task.fullTime.substring(4, 8) && (
+                      <hr className="border my-4 border-gray-200" />
+                    )}
+                  <div key={task.id} className="flex w-full">
+                    <input
+                      className="w-10"
+                      type="checkbox"
+                      checked={checkedIds.includes(task.id)}
+                      onChange={() => handleCheckboxChange(task.id)}
+                    />
+                    <button
+                      className="bg-cyan-300 hover:bg-cyan-100 text-white rounded mx-2  px-2 py-2"
+                      onClick={() => handleCopyList(task)}
+                    >
+                      &rarr;
+                    </button>
+                    <div className="w-full mr-2">{task.todo}</div>
+                    <div className="w-20 mr-2">
+                      {task.fullTime.substring(4, 6) +
+                        "/" +
+                        task.fullTime.substring(6, 8)}
                     </div>
-                  )}
-                  <div className="flex container flex-wrap h-3  justify-between">
-                    {task.tags && (
-                      <div className="flex">
-                        {task.tags.map((tag) => (
-                          <div
-                            style={{
-                              backgroundColor: tagWhatListWithColors[tag]
-                                ? tagWhatListWithColors[tag] + "90"
-                                : "#868686" + "90",
-                              color: getContrastYIQ(
-                                tagWhatListWithColors[tag]
-                                  ? tagWhatListWithColors[tag]
-                                  : "#FFFFFF"
-                              ),
-                            }}
-                            key={tag}
-                          >
-                            {tag}
-                          </div>
+                    <div className="w-64 mr-2">
+                      {task.startAt + "-" + task.endAt}
+                    </div>
+                    {task.startAt && (
+                      <div className="w-32 mr-2">{`${calculateTimeDifference(
+                        task.startAt,
+                        task.endAt
+                      )} 分`}</div>
+                    )}
+                    {task.categories && (
+                      <div>
+                        {task.categories.map((category) => (
+                          <div key={category}>{category}</div>
                         ))}
                       </div>
                     )}
-                    {task.tagWhos && (
-                      <div className="flex">
-                        {task.tagWhos.map((tag) => (
-                          <div
-                            style={{
-                              backgroundColor: tagWhoListWithColors[tag]
-                                ? tagWhoListWithColors[tag] + "90"
-                                : "#868686" + "90",
-                              color: getContrastYIQ(
-                                tagWhoListWithColors[tag]
-                                  ? tagWhoListWithColors[tag]
-                                  : "#FFFFFF"
-                              ),
-                            }}
-                            key={tag}
-                          >
-                            {tag}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {task.tagWheres && (
-                      <div className="flex">
-                        {task.tagWheres.map((tag) => (
-                          <div
-                            style={{
-                              backgroundColor: tagWhereListWithColors[tag]
-                                ? tagWhereListWithColors[tag] + "90"
-                                : "#868686" + "90",
-                              color: getContrastYIQ(
-                                tagWhereListWithColors[tag]
-                                  ? tagWhereListWithColors[tag]
-                                  : "#FFFFFF"
-                              ),
-                            }}
-                            key={tag}
-                          >
-                            {tag}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex container flex-wrap h-3  justify-between">
+                      {task.tags && (
+                        <div className="flex">
+                          {task.tags.map((tag) => (
+                            <div
+                              style={{
+                                backgroundColor: tagWhatListWithColors[tag]
+                                  ? tagWhatListWithColors[tag] + "90"
+                                  : "#868686" + "90",
+                                color: getContrastYIQ(
+                                  tagWhatListWithColors[tag]
+                                    ? tagWhatListWithColors[tag]
+                                    : "#FFFFFF"
+                                ),
+                              }}
+                              key={tag}
+                            >
+                              {tag}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {task.tagWhos && (
+                        <div className="flex">
+                          {task.tagWhos.map((tag) => (
+                            <div
+                              style={{
+                                backgroundColor: tagWhoListWithColors[tag]
+                                  ? tagWhoListWithColors[tag] + "90"
+                                  : "#868686" + "90",
+                                color: getContrastYIQ(
+                                  tagWhoListWithColors[tag]
+                                    ? tagWhoListWithColors[tag]
+                                    : "#FFFFFF"
+                                ),
+                              }}
+                              key={tag}
+                            >
+                              {tag}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {task.tagWheres && (
+                        <div className="flex">
+                          {task.tagWheres.map((tag) => (
+                            <div
+                              style={{
+                                backgroundColor: tagWhereListWithColors[tag]
+                                  ? tagWhereListWithColors[tag] + "90"
+                                  : "#868686" + "90",
+                                color: getContrastYIQ(
+                                  tagWhereListWithColors[tag]
+                                    ? tagWhereListWithColors[tag]
+                                    : "#FFFFFF"
+                                ),
+                              }}
+                              key={tag}
+                            >
+                              {tag}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })}
       <div className="flex mt-5">
         <p className="text-gray-500 bg-slate-100">開始日</p>
         <input
