@@ -167,25 +167,22 @@ const Tasks = () => {
     const tasksWithTime = userTasks.map((task) => {
       let taskDate;
 
-      // FirebaseのTimestampからDateオブジェクトを生成
-      if (typeof task.createdAt.toDate === "function") {
-        taskDate = task.createdAt.toDate();
-      }
-      // {nanoseconds: xxx, seconds: xxx}形式からDateオブジェクトを生成
-      else if (task.createdAt.seconds) {
-        taskDate = new Date(task.createdAt.seconds * 1000);
-        // }
-        // // ISO 8601形式の日付文字列からDateオブジェクトを生成
-        // else if (typeof task.createdAt === "string") {
-        //   taskDate = new Date(task.createdAt);
-        // }
-        // // 既にDateオブジェクトの場合
-        // else if (task.createdAt instanceof Date) {
-        //   taskDate = task.createdAt;
-      }
-      // 予期せぬ形式の場合、現在の日付を使用
-      else {
-        taskDate = new Date();
+      // task.taskDayが存在するかどうかと、YYYY-MM-DD形式に一致するかをチェック
+      if (task.taskDay && /^\d{4}-\d{2}-\d{2}$/.test(task.taskDay)) {
+        taskDate = new Date(task.taskDay);
+      } else {
+        // FirebaseのTimestampからDateオブジェクトを生成
+        if (typeof task.createdAt.toDate === "function") {
+          taskDate = task.createdAt.toDate();
+        }
+        // {nanoseconds: xxx, seconds: xxx}形式からDateオブジェクトを生成
+        else if (task.createdAt.seconds) {
+          taskDate = new Date(task.createdAt.seconds * 1000);
+        }
+        // 予期せぬ形式の場合、現在の日付を使用
+        else {
+          taskDate = new Date();
+        }
       }
 
       // Dateオブジェクトを指定したフォーマットに変換
@@ -217,6 +214,7 @@ const Tasks = () => {
       );
       return diffDaysFromStart <= 0 && diffDaysFromEnd >= 0;
     });
+    console.log(resentTasks);
 
     if (resentTasks.length === 0) {
       return resentTasks;
@@ -244,7 +242,6 @@ const Tasks = () => {
     if (resentTagWheres && resentTagWheres[0] !== "") {
       setTagWheres(resentTagWheres);
     }
-
     return resentTasks;
   };
   const getTaskList = async () => {
