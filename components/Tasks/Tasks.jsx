@@ -15,7 +15,7 @@ import TagsInput from "./TagsInput";
 import colormap from "colormap";
 import { AnalysisChart } from "./AnalysisChart";
 import CustomCalendar from "./CustomCalendar";
-import { async } from "@firebase/util";
+import { sortTasks } from "./SortTasks";
 
 const Tasks = () => {
   const [taskList, setTaskList] = useState([]);
@@ -51,13 +51,111 @@ const Tasks = () => {
   );
   const [copyDay, setCopyDay] = useState(format(today, "yyyy-MM-dd"));
 
+  //[1]内部関数
   const changeLocalTime = async () => {
     const docRef = doc(db, "tasksUpdateTime", "1");
     const docSnap = await getDoc(docRef);
     const firebaseTaskUpdateTime = docSnap.data().updatedAt.toDate().getTime();
     localStorage.setItem("updateTime", firebaseTaskUpdateTime);
   };
+  const timeToMinutes = (timeString) => {
+    const [hours, minutes] = timeString.split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+  const calculateTimeDifference = (time1, time2) => {
+    const minutes1 = timeToMinutes(time1);
+    const minutes2 = timeToMinutes(time2);
 
+    return Math.abs(minutes1 - minutes2);
+  };
+  const setValues = (resentTasks) => {
+    if (resentTasks.length === 0) {
+      return resentTasks;
+    }
+
+    if (resentTasks[resentTasks.length - 1].taskDay) {
+      setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
+    } else {
+      const formattedDate = today.toISOString().split("T")[0];
+      setTaskDay(formattedDate);
+    }
+
+    setStartAt(resentTasks[resentTasks.length - 1].endAt);
+    const resentTags = resentTasks[resentTasks.length - 1].tags;
+    if (resentTags && resentTags[0] !== "") {
+      setTagWhats(resentTags);
+    }
+
+    const resentTagWhos = resentTasks[resentTasks.length - 1].tagWhos;
+    if (resentTagWhos && resentTagWhos[0] !== "") {
+      setTagWhos(resentTagWhos);
+    }
+
+    const resentTagWheres = resentTasks[resentTasks.length - 1].tagWheres;
+    if (resentTagWheres && resentTagWheres[0] !== "") {
+      setTagWheres(resentTagWheres);
+    }
+  };
+  function getContrastYIQ(hexColor) {
+    const r = parseInt(hexColor.substr(1, 2), 16);
+    const g = parseInt(hexColor.substr(3, 2), 16);
+    const b = parseInt(hexColor.substr(5, 2), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? "#969696" : "white";
+  }
+  const getTasksOnSpecificDay = (specificDay) => {
+    const tasksOnSpecificDay = taskList.filter((task) => {
+      return (
+        parseInt(task.fullTime.substring(0, 4)) ===
+          parseInt(specificDay.substring(0, 4)) &&
+        parseInt(task.fullTime.substring(4, 6)) ===
+          parseInt(specificDay.substring(5, 7)) &&
+        parseInt(task.fullTime.substring(6, 8)) ===
+          parseInt(specificDay.substring(8, 10))
+      );
+    });
+    return tasksOnSpecificDay;
+  };
+
+  //[2]ハンドル
+  const handleCreateTask = async () => {
+    await createTask();
+    await getTaskList();
+  };
+  // チェックボックスの状態を管理する関数
+  const handleCheckboxChange = (id) => {
+    setCheckedIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((itemId) => itemId !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+  const handleCopyList = (task) => {
+    setTodo(task.todo);
+    setTaskDay(task.taskDay);
+    setStartAt(task.startAt);
+    setEndAt(task.endAt);
+    setTagWhats(task.tags);
+    setTagWheres(task.tagWheres);
+    setTagWhos(task.tagWhos);
+    setCheckedRenewId(task.id);
+  };
+  const copyTasks = () => {
+    const copyTasks = getTasksOnSpecificDay(copyDay);
+    let isConfirmed = true;
+    if (copyTasks.length > 0) {
+      isConfirmed = confirm("既にデータがあります。コピーしてもいいですか？");
+    }
+    if (isConfirmed === false) {
+      return;
+    }
+    const referringTasks = getTasksOnSpecificDay(referringDay);
+    createTasks(referringTasks, copyDay);
+  };
+
+  //[3]db関連
   const createTask = async () => {
     if (isNaN(calculateTimeDifference(startAt, endAt))) {
     } else {
@@ -91,11 +189,6 @@ const Tasks = () => {
     }
   };
 
-  const handleCreateTask = async () => {
-    await createTask();
-    await getTaskList();
-  };
-
   const createTasks = async (tasks, copyDay) => {
     for (const task of tasks) {
       if (!isNaN(calculateTimeDifference(task.startAt, task.endAt))) {
@@ -122,128 +215,6 @@ const Tasks = () => {
     }
   };
 
-  const timeToMinutes = (timeString) => {
-    const [hours, minutes] = timeString.split(":").map(Number);
-    return hours * 60 + minutes;
-  };
-
-  const calculateTimeDifference = (time1, time2) => {
-    const minutes1 = timeToMinutes(time1);
-    const minutes2 = timeToMinutes(time2);
-
-    return Math.abs(minutes1 - minutes2);
-  };
-
-  const sortTasks = (taskList, startDay, endDay) => {
-    const userTasks = taskList
-      .filter((task) => {
-        return task.author?.id === auth.currentUser?.uid;
-      })
-      .filter((task) => {
-        const hasStartAt = task.startAt !== undefined;
-
-        let date;
-        if (task.createdAt) {
-          if (typeof task.createdAt.toDate === "function") {
-            // createdAtがFirebase Timestampオブジェクトである場合
-            date = task.createdAt.toDate();
-          } else if (task.createdAt.seconds) {
-            // createdAtが {nanoseconds: 865000000, seconds: 1708950922} の形式である場合
-            date = new Date(task.createdAt.seconds * 1000);
-          } else if (
-            typeof task.createdAt === "string" ||
-            typeof task.createdAt === "number"
-          ) {
-            // createdAtが文字列または数値（タイムスタンプ）の場合
-            date = new Date(task.createdAt);
-          }
-        }
-
-        const hasValidCreatedAt = date instanceof Date && !isNaN(date);
-
-        return hasStartAt && hasValidCreatedAt;
-      });
-
-    const tasksWithTime = userTasks.map((task) => {
-      let taskDate;
-
-      // task.taskDayが存在するかどうかと、YYYY-MM-DD形式に一致するかをチェック
-      if (task.taskDay && /^\d{4}-\d{2}-\d{2}$/.test(task.taskDay)) {
-        taskDate = new Date(task.taskDay);
-      } else {
-        // FirebaseのTimestampからDateオブジェクトを生成
-        if (typeof task.createdAt.toDate === "function") {
-          taskDate = task.createdAt.toDate();
-        }
-        // {nanoseconds: xxx, seconds: xxx}形式からDateオブジェクトを生成
-        else if (task.createdAt.seconds) {
-          taskDate = new Date(task.createdAt.seconds * 1000);
-        }
-        // 予期せぬ形式の場合、現在の日付を使用
-        else {
-          taskDate = new Date();
-        }
-      }
-
-      // Dateオブジェクトを指定したフォーマットに変換
-      const yyyyMMdd = format(taskDate, "yyyyMMdd");
-      const time = task.startAt.split(":")[0] + task.startAt.split(":")[1];
-      const fullTime = yyyyMMdd + time;
-      const year = parseInt(fullTime.substring(0, 4));
-      const month = parseInt(fullTime.substring(4, 6)) - 1;
-      const date = parseInt(fullTime.substring(6, 8));
-      const hour = parseInt(fullTime.substring(8, 10));
-      const min = parseInt(fullTime.substring(10, 12));
-      const fullTimeDate = new Date(year, month, date, hour, min);
-
-      return { ...task, fullTime: fullTime, fullTimeDate: fullTimeDate };
-    });
-
-    const sortedTasks = tasksWithTime.sort((a, b) => {
-      return a.fullTime > b.fullTime ? 1 : -1;
-    });
-
-    const resentTasks = sortedTasks.filter((task) => {
-      const diffMilliSecFromStart = parseISO(startDay) - task.fullTimeDate;
-      const diffDaysFromStart = parseInt(
-        diffMilliSecFromStart / 1000 / 60 / 60 / 24
-      );
-      const diffMilliSecFromEnd = parseISO(endDay) - task.fullTimeDate;
-      const diffDaysFromEnd = parseInt(
-        diffMilliSecFromEnd / 1000 / 60 / 60 / 24
-      );
-      return diffDaysFromStart <= 0 && diffDaysFromEnd >= 0;
-    });
-    console.log(resentTasks);
-
-    if (resentTasks.length === 0) {
-      return resentTasks;
-    }
-
-    if (resentTasks[resentTasks.length - 1].taskDay) {
-      setTaskDay(resentTasks[resentTasks.length - 1].taskDay);
-    } else {
-      const formattedDate = today.toISOString().split("T")[0];
-      setTaskDay(formattedDate);
-    }
-
-    setStartAt(resentTasks[resentTasks.length - 1].endAt);
-    const resentTags = resentTasks[resentTasks.length - 1].tags;
-    if (resentTags && resentTags[0] !== "") {
-      setTagWhats(resentTags);
-    }
-
-    const resentTagWhos = resentTasks[resentTasks.length - 1].tagWhos;
-    if (resentTagWhos && resentTagWhos[0] !== "") {
-      setTagWhos(resentTagWhos);
-    }
-
-    const resentTagWheres = resentTasks[resentTasks.length - 1].tagWheres;
-    if (resentTagWheres && resentTagWheres[0] !== "") {
-      setTagWheres(resentTagWheres);
-    }
-    return resentTasks;
-  };
   const getTaskList = async () => {
     const localTasks = localStorage.getItem("tasks");
     const localTaskUpdateTime = Number(localStorage.getItem("updateTime"));
@@ -314,25 +285,6 @@ const Tasks = () => {
     }
   };
 
-  function getContrastYIQ(hexColor) {
-    const r = parseInt(hexColor.substr(1, 2), 16);
-    const g = parseInt(hexColor.substr(3, 2), 16);
-    const b = parseInt(hexColor.substr(5, 2), 16);
-    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    return yiq >= 128 ? "#969696" : "white";
-  }
-
-  // チェックボックスの状態を管理する関数
-  const handleCheckboxChange = (id) => {
-    setCheckedIds((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((itemId) => itemId !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
-  };
-
   // 選択されたタスクを削除する関数
   const deleteSelectedTasks = async () => {
     if (window.confirm("選択したタスクを削除しますか？")) {
@@ -345,17 +297,6 @@ const Tasks = () => {
       getTaskList();
       setCheckedIds([]);
     }
-  };
-
-  const handleCopyList = (task) => {
-    setTodo(task.todo);
-    setTaskDay(task.taskDay);
-    setStartAt(task.startAt);
-    setEndAt(task.endAt);
-    setTagWhats(task.tags);
-    setTagWheres(task.tagWheres);
-    setTagWhos(task.tagWhos);
-    setCheckedRenewId(task.id);
   };
 
   // タスクを更新する関数
@@ -388,33 +329,6 @@ const Tasks = () => {
     }
   };
 
-  const getTasksOnSpecificDay = (specificDay) => {
-    const tasksOnSpecificDay = taskList.filter((task) => {
-      return (
-        parseInt(task.fullTime.substring(0, 4)) ===
-          parseInt(specificDay.substring(0, 4)) &&
-        parseInt(task.fullTime.substring(4, 6)) ===
-          parseInt(specificDay.substring(5, 7)) &&
-        parseInt(task.fullTime.substring(6, 8)) ===
-          parseInt(specificDay.substring(8, 10))
-      );
-    });
-    return tasksOnSpecificDay;
-  };
-
-  const copyTasks = () => {
-    const copyTasks = getTasksOnSpecificDay(copyDay);
-    let isConfirmed = true;
-    if (copyTasks.length > 0) {
-      isConfirmed = confirm("既にデータがあります。コピーしてもいいですか？");
-    }
-    if (isConfirmed === false) {
-      return;
-    }
-    const referringTasks = getTasksOnSpecificDay(referringDay);
-    createTasks(referringTasks, copyDay);
-  };
-
   const initialize = () => {
     getTaskList();
     getTagLists("tagWhats");
@@ -436,6 +350,7 @@ const Tasks = () => {
     }
   };
 
+  //[4]useEffect
   useEffect(() => {
     initialize();
   }, [accountStartDay, accountEndDay]);
@@ -443,6 +358,10 @@ const Tasks = () => {
   useEffect(() => {
     getTaskAnalysis();
   }, [analysisStartDay, analysisEndDay]);
+
+  useEffect(() => {
+    setValues(taskList);
+  }, [taskList]);
 
   return (
     <>
