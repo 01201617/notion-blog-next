@@ -67,7 +67,7 @@ const sortTasks = (taskList: Task[], startDay: string, endDay: string) => {
     const diffDaysFromStart = Math.floor(diffMilliSecFromStart / (1000 * 60 * 60 * 24));
     const diffMilliSecFromEnd = parseISO(endDay).getTime() - task.fullTimeDate.getTime();
     const diffDaysFromEnd = Math.floor(diffMilliSecFromEnd / (1000 * 60 * 60 * 24));
-    return diffDaysFromStart <= 0 && diffDaysFromEnd >= -1;
+    return diffDaysFromStart <= -1 && diffDaysFromEnd >= -1;
   });
 
   // console.log(recentTasks);
