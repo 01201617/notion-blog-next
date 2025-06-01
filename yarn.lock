@@ -701,6 +701,11 @@
   resolved "https://registry.npmjs.org/@tsconfig/node16/-/node16-1.0.4.tgz"
   integrity sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==
 
+"@types/colormap@^2.3.4":
+  version "2.3.4"
+  resolved "https://registry.npmjs.org/@types/colormap/-/colormap-2.3.4.tgz"
+  integrity sha512-kKKbv5JXmWieUCqjO1amnf/2wS8pHKdjxnxKanWalI6p3ly5Hjt+/+6oB+Sk+dC02qzNuj6x87xltb+PPxeiNQ==
+
 "@types/date-arithmetic@*":
   version "4.1.4"
   resolved "https://registry.npmjs.org/@types/date-arithmetic/-/date-arithmetic-4.1.4.tgz"
