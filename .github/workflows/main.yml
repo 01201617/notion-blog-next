@@ -6,6 +6,7 @@ on:
       - main # トリガーするブランチを適切に指定
   schedule:
     - cron: "0 */12 * * *"
+  workflow_dispatch:
 
 env:
   NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
