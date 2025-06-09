@@ -19,6 +19,20 @@ const nextConfig = {
     FB_MESSAGING_SENDER_ID: process.env.FB_MESSAGING_SENDER_ID,
     FB_APP_ID: process.env.FB_APP_ID,
   },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "no-store" }, // SSRキャッシュ対策
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
