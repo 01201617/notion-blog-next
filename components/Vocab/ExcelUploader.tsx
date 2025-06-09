@@ -1,33 +1,35 @@
 "use client";
 
 import React, { useRef } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { addVocab } from "./firestoreUtils";
 
 const ExcelUploader = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(sheet);
+    const buffer = await file.arrayBuffer();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.worksheets[0];
 
-    for (const row of jsonData) {
-      const { 番号, 日本語, 英語 } = row as {
-        番号: number;
-        日本語: string;
-        英語: string;
-      };
+    for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+      const row = worksheet.getRow(rowNumber);
+      const id = row.getCell(1).value?.toString() || "";
+      const jpn = row.getCell(2).value?.toString() || "";
+      const eng = row.getCell(3).value?.toString() || "";
+
+      if (!eng || !jpn) continue; // 空行スキップ
+
       await addVocab({
-        eng: 英語,
-        jpn: 日本語,
+        eng,
+        jpn,
         categories: [],
-        remarks: `Excel row ${番号}`,
+        remarks: `Excel row ${id}`,
         isFavorite: false,
       });
     }
+
     alert("アップロードが完了しました");
   };
 
@@ -57,7 +59,7 @@ const ExcelUploader = () => {
       </button>
       <input
         type="file"
-        accept=".xlsx,.xls"
+        accept=".xlsx"
         ref={fileInputRef}
         onChange={handleChange}
         className="hidden"
