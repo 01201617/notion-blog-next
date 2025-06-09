@@ -9,6 +9,7 @@ import Tasks from "../../components/Tasks/Tasks";
 import FlipCard from "../../components/Vocab/FlipCard";
 import ToggleButton from "../../components/Vocab/ToggleButton";
 import VocabForm from "../../components/Vocab/VocabForm";
+import ExcelUploader from "../../components/Vocab/ExcelUploader";
 
 type Vocab = {
   id: string;
@@ -76,7 +77,7 @@ const VocabPage = () => {
               </h1>
               <VocabForm />
             </div>
-
+            <ExcelUploader />
             <ToggleButton showEnglish={showEnglish} toggle={toggleLanguage} />
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">

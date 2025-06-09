@@ -71,7 +71,7 @@ const VocabForm = () => {
     <form onSubmit={handleSubmit} className="space-y-4 p-4 max-w-xl mx-auto">
       <input
         type="text"
-        placeholder="英語"
+        placeholder="英語(or Q)"
         value={eng}
         onChange={(e) => setEng(e.target.value)}
         className="w-full border p-2 rounded"
@@ -79,7 +79,7 @@ const VocabForm = () => {
       />
       <input
         type="text"
-        placeholder="日本語訳"
+        placeholder="日本語訳(or A)"
         value={jpn}
         onChange={(e) => setJpn(e.target.value)}
         className="w-full border p-2 rounded"
