@@ -1,17 +1,20 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useState, useMemo } from "react";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../../components/Tasks/firebase";
 
 import Login from "../../components/Tasks/Login";
 import Logout from "../../components/Tasks/Logout";
-import Tasks from "../../components/Tasks/Tasks";
+import { updateLastReadAt } from "../../components/Vocab/firestoreUtils";
 import FlipCard from "../../components/Vocab/FlipCard";
 import ToggleButton from "../../components/Vocab/ToggleButton";
 import VocabForm from "../../components/Vocab/VocabForm";
 import ExcelUploader from "../../components/Vocab/ExcelUploader";
+import FilterPanel from "../../components/Vocab/FilterPanel";
+import { generateTagColors } from "../../components/Vocab/generateTagColors";
 
-type Vocab = {
+export type Vocab = {
   id: string;
   eng: string;
   jpn: string;
@@ -21,19 +24,33 @@ type Vocab = {
   createdAt: any;
   updatedAt: any;
   lastReadAt: any;
+  readCount: number;
 };
 
 const VocabPage = () => {
   const [isAuth, setIsAuth] = useState(false);
   const [showEnglish, setShowEnglish] = useState(true);
   const [vocabs, setVocabs] = useState<Vocab[]>([]);
-  const [flippedStates, setFlippedStates] = useState<boolean[]>([]);
+  const [flippedStates, setFlippedStates] = useState<{ [id: string]: boolean }>(
+    {}
+  );
+  const [visibleDetailsId, setVisibleDetailsId] = useState<string | null>(null);
+
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [lastReadFrom, setLastReadFrom] = useState("");
+  const [lastReadTo, setLastReadTo] = useState("");
+  const [readCountFrom, setReadCountFrom] = useState(0);
+  const [readCountTo, setReadCountTo] = useState(0);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [tagVocabColors, setTagVocabColors] = useState<{
+    [key: string]: string;
+  }>({});
 
   useEffect(() => {
     setIsAuth(Boolean(localStorage.getItem("isAuth")));
   }, []);
 
-  // Firestore から vocabs を取得
   useEffect(() => {
     const q = query(collection(db, "vocabs"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -42,26 +59,103 @@ const VocabPage = () => {
         ...doc.data(),
       })) as Vocab[];
       setVocabs(fetched);
-      setFlippedStates(fetched.map(() => false)); // 取得時に初期化
     });
-
-    return () => unsubscribe(); // クリーンアップ
+    return () => unsubscribe();
   }, []);
 
-  // 表示言語切り替え時にカード状態リセット
   useEffect(() => {
-    setFlippedStates(vocabs.map(() => false));
-  }, [showEnglish, vocabs]);
+    generateTagColors("tagVocabs").then((colors) => setTagVocabColors(colors));
+  }, []);
 
   const toggleLanguage = () => {
     setShowEnglish((prev) => !prev);
+    const resetStates: { [id: string]: boolean } = {};
+    vocabs.forEach((vocab) => {
+      resetStates[vocab.id] = false;
+    });
+    setFlippedStates(resetStates);
+    setVisibleDetailsId(null);
   };
 
-  const handleCardClick = (index: number) => {
-    setFlippedStates((prev) =>
-      prev.map((val, i) => (i === index ? !val : val))
-    );
+  const handleCardClick = (vocab: Vocab) => {
+    setFlippedStates((prev) => ({
+      ...prev,
+      [vocab.id]: !prev[vocab.id],
+    }));
+    setVisibleDetailsId((prev) => (prev === vocab.id ? null : vocab.id));
+
+    const lastRead = vocab.lastReadAt?.seconds
+      ? vocab.lastReadAt.seconds * 1000
+      : null;
+    const now = Date.now();
+    const tenMinutes = 10 * 60 * 1000;
+
+    if (!lastRead || now - lastRead >= tenMinutes) {
+      updateLastReadAt(vocab.id);
+    }
   };
+
+  const parseYM = (ym: string) => {
+    const [year, month] = ym.split("-").map(Number);
+    return new Date(year, month - 1);
+  };
+
+  const filteredVocabs = useMemo(() => {
+    return vocabs.filter((vocab) => {
+      const createdAt = vocab.createdAt?.toDate?.();
+      const lastReadAt = vocab.lastReadAt?.toDate?.();
+
+      const readCount = vocab.readCount ?? 0;
+
+      if (createdFrom && createdAt && createdAt < parseYM(createdFrom))
+        return false;
+      if (
+        createdTo &&
+        createdAt &&
+        createdAt >
+          new Date(
+            parseYM(createdTo).getFullYear(),
+            parseYM(createdTo).getMonth() + 1,
+            0
+          )
+      )
+        return false;
+
+      if (lastReadFrom && lastReadAt && lastReadAt < parseYM(lastReadFrom))
+        return false;
+      if (
+        lastReadTo &&
+        lastReadAt &&
+        lastReadAt >
+          new Date(
+            parseYM(lastReadTo).getFullYear(),
+            parseYM(lastReadTo).getMonth() + 1,
+            0
+          )
+      )
+        return false;
+
+      if (readCount < readCountFrom || readCount > readCountTo) return false;
+
+      if (selectedCategories.length > 0) {
+        const overlap = vocab.categories?.some((cat) =>
+          selectedCategories.includes(cat)
+        );
+        if (!overlap) return false;
+      }
+
+      return true;
+    });
+  }, [
+    vocabs,
+    createdFrom,
+    createdTo,
+    lastReadFrom,
+    lastReadTo,
+    readCountFrom,
+    readCountTo,
+    selectedCategories,
+  ]);
 
   return (
     <>
@@ -69,29 +163,58 @@ const VocabPage = () => {
         <Login setIsAuth={setIsAuth} />
       ) : (
         <div className="p-4 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold mb-2">🧠 英熟語学習カード</h2>
-            <div className="min-h-screen bg-gray-100">
-              <h1 className="text-2xl font-bold text-center py-6">
-                📘 英熟語 登録フォーム
-              </h1>
-              <VocabForm />
-            </div>
-            <ExcelUploader />
-            <ToggleButton showEnglish={showEnglish} toggle={toggleLanguage} />
+          <h2 className="text-lg font-bold mb-2">🧠 英熟語学習カード</h2>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-              {vocabs.map((item, index) => (
-                <FlipCard
-                  key={item.id}
-                  front={showEnglish ? item.eng : item.jpn}
-                  back={showEnglish ? item.jpn : item.eng}
-                  flipped={flippedStates[index]}
-                  onClick={() => handleCardClick(index)}
-                  showEnglish={showEnglish}
-                />
-              ))}
-            </div>
+          <div className="min-h-screen bg-gray-100">
+            <h1 className="text-2xl font-bold text-center py-6">
+              📘 英熟語 登録フォーム
+            </h1>
+            <VocabForm />
+          </div>
+
+          <ExcelUploader />
+
+          <div className="flex gap-2 items-center">
+            <ToggleButton showEnglish={showEnglish} toggle={toggleLanguage} />
+            <FilterPanel
+              createdFrom={createdFrom}
+              setCreatedFrom={setCreatedFrom}
+              createdTo={createdTo}
+              setCreatedTo={setCreatedTo}
+              lastReadFrom={lastReadFrom}
+              setLastReadFrom={setLastReadFrom}
+              lastReadTo={lastReadTo}
+              setLastReadTo={setLastReadTo}
+              readCountFrom={readCountFrom}
+              setReadCountFrom={setReadCountFrom}
+              readCountTo={readCountTo}
+              setReadCountTo={setReadCountTo}
+              selectedCategories={selectedCategories}
+              setSelectedCategories={setSelectedCategories}
+              tagKind="tagVocabs"
+              tagWhatListWithColors={tagVocabColors}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+            {filteredVocabs.map((item) => (
+              <FlipCard
+                key={item.id}
+                front={showEnglish ? item.eng : item.jpn}
+                back={showEnglish ? item.jpn : item.eng}
+                flipped={!!flippedStates[item.id]}
+                onClick={() => handleCardClick(item)}
+                showEnglish={showEnglish}
+                showDetails={visibleDetailsId === item.id}
+                vocabDetails={{
+                  remarks: item.remarks,
+                  categories: item.categories,
+                  createdAt: item.createdAt,
+                  lastReadAt: item.lastReadAt,
+                  readCount: item.readCount ?? 0,
+                }}
+              />
+            ))}
           </div>
 
           <Logout setIsAuth={setIsAuth} />
