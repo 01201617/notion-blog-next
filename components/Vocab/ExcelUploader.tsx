@@ -13,19 +13,67 @@ const ExcelUploader = () => {
     await workbook.xlsx.load(buffer);
     const worksheet = workbook.worksheets[0];
 
+    const headerRow = worksheet.getRow(1);
+    const headers = headerRow.values as string[];
+
+    const normalize = (str: string) =>
+      str.toLowerCase().replace(/[^a-z]/gi, "");
+
+    const headerMap: Record<string, number> = {};
+
+    headers.forEach((header, idx) => {
+      if (typeof header !== "string") return;
+      const key = normalize(header);
+      if (["jpn", "japanese", "answer", "ans", "a"].includes(key)) {
+        headerMap.jpn = idx;
+      } else if (["eng", "english", "question", "q", "que"].includes(key)) {
+        headerMap.eng = idx;
+      } else if (["categories", "category", "tag", "tags"].includes(key)) {
+        headerMap.categories = idx;
+      }
+    });
+
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
       const row = worksheet.getRow(rowNumber);
-      const id = row.getCell(1).value?.toString() || "";
-      const jpn = row.getCell(2).value?.toString() || "";
-      const eng = row.getCell(3).value?.toString() || "";
+      const jpn =
+        row
+          .getCell(headerMap.jpn ?? 0)
+          .value?.toString()
+          .trim() || "";
+      const eng =
+        row
+          .getCell(headerMap.eng ?? 0)
+          .value?.toString()
+          .trim() || "";
+      const categoriesRaw =
+        row
+          .getCell(headerMap.categories ?? 0)
+          .value?.toString()
+          .trim() || "";
+      const categories = categoriesRaw.split(/[、,\s]+/).filter((s) => s);
 
-      if (!eng || !jpn) continue; // 空行スキップ
+      if (!eng || !jpn) continue;
+
+      const remarksParts: string[] = [];
+      headers.forEach((header, idx) => {
+        if (
+          typeof header === "string" &&
+          idx !== headerMap.jpn &&
+          idx !== headerMap.eng &&
+          idx !== headerMap.categories
+        ) {
+          const cellVal = row.getCell(idx).value?.toString().trim();
+          if (cellVal) remarksParts.push(`${header}: ${cellVal}`);
+        }
+      });
+
+      const remarks = remarksParts.join(" / ");
 
       await addVocab({
         eng,
         jpn,
-        categories: [],
-        remarks: `Excel row ${id}`,
+        categories,
+        remarks,
         isFavorite: false,
       });
     }
