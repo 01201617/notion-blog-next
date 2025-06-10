@@ -136,8 +136,8 @@ const VocabPage = () => {
         return false;
 
       if (
-        vocab.readCount < readCountFrom ||
-        (readCountTo !== undefined && vocab.readCount > readCountTo)
+        readCount < readCountFrom ||
+        (readCountTo !== undefined && readCount > readCountTo)
       )
         return false;
 
@@ -201,23 +201,29 @@ const VocabPage = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-            {filteredVocabs.map((item) => (
-              <FlipCard
-                key={item.id}
-                front={showEnglish ? item.eng : item.jpn}
-                back={showEnglish ? item.jpn : item.eng}
-                flipped={!!flippedStates[item.id]}
-                onClick={() => handleCardClick(item)}
-                showEnglish={showEnglish}
-                showDetails={visibleDetailsId === item.id}
-                vocabDetails={{
-                  remarks: item.remarks,
-                  categories: item.categories,
-                  createdAt: item.createdAt,
-                  lastReadAt: item.lastReadAt,
-                  readCount: item.readCount ?? 0,
-                }}
-              />
+            {filteredVocabs.map((item, index) => (
+              <React.Fragment key={item.id}>
+                {index > 0 && index % 50 === 0 && (
+                  <div className="col-span-full text-center text-xs text-gray-400 py-2">
+                    — {index} —
+                  </div>
+                )}
+                <FlipCard
+                  front={showEnglish ? item.eng : item.jpn}
+                  back={showEnglish ? item.jpn : item.eng}
+                  flipped={!!flippedStates[item.id]}
+                  onClick={() => handleCardClick(item)}
+                  showEnglish={showEnglish}
+                  showDetails={visibleDetailsId === item.id}
+                  vocabDetails={{
+                    remarks: item.remarks,
+                    categories: item.categories,
+                    createdAt: item.createdAt,
+                    lastReadAt: item.lastReadAt,
+                    readCount: item.readCount ?? 0,
+                  }}
+                />
+              </React.Fragment>
             ))}
           </div>
 
