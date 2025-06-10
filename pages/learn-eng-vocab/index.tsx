@@ -41,7 +41,7 @@ const VocabPage = () => {
   const [lastReadFrom, setLastReadFrom] = useState("");
   const [lastReadTo, setLastReadTo] = useState("");
   const [readCountFrom, setReadCountFrom] = useState(0);
-  const [readCountTo, setReadCountTo] = useState(0);
+  const [readCountTo, setReadCountTo] = useState<number | undefined>(undefined);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [tagVocabColors, setTagVocabColors] = useState<{
     [key: string]: string;
@@ -135,7 +135,11 @@ const VocabPage = () => {
       )
         return false;
 
-      if (readCount < readCountFrom || readCount > readCountTo) return false;
+      if (
+        vocab.readCount < readCountFrom ||
+        (readCountTo !== undefined && vocab.readCount > readCountTo)
+      )
+        return false;
 
       if (selectedCategories.length > 0) {
         const overlap = vocab.categories?.some((cat) =>
